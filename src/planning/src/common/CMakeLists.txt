@@ -54,5 +54,3 @@ INSTALL(TARGETS
   ${config_target}
   ${math_target}
   LIBRARY DESTINATION lib)
-
-

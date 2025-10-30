@@ -7,7 +7,7 @@
 
 namespace Planning
 {
-  class ConfigReader  //配置文件读取器
+  class ConfigReader // 配置文件读取器
   {
   public:
     ConfigReader();

@@ -2,6 +2,11 @@
 #define DECISION_CENTER_H_
 
 #include "rclcpp/rclcpp.hpp"
+#include "config_reader.h"
+#include "obs_car/obs_car_info.h"
+#include "main_car/main_car_info.h"
+
+
 namespace Planning
 {
   class DecisionCenter // 决策中心

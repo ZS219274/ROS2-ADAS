@@ -4,9 +4,9 @@
 
 namespace Planning
 {
-  PlanningProcess::PlanningProcess() : Node("planning_node")  //规划总流程
+  PlanningProcess::PlanningProcess() : Node("planning_process")  //规划总流程
   {
-    RCLCPP_INFO(this->get_logger(), "Planning process node created");
+    RCLCPP_INFO(this->get_logger(), "Planning process created");
     auto reader = std::make_shared<ConfigReader>();
     reader->read_planning_process_config();
     auto obs_dis = reader->process().obs_dis_;

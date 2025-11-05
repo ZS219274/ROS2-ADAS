@@ -9,6 +9,7 @@ namespace Planning
   {
   public:
     PncMapCreatorStraight();
+    PNCMap create_pnc_map() override;
   };
 
 } // namespace Planning

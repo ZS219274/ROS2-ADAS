@@ -6,4 +6,9 @@ namespace Planning
   {
     RCLCPP_INFO(rclcpp::get_logger("PncMapCreatorStraight"), "PncMapCreatorStraight creatd.");
   }
+
+  PNCMap PncMapCreatorStraight::create_pnc_map()
+  {
+    return pnc_map_; 
+  }
 }

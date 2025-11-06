@@ -3,31 +3,30 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "base_msgs/srv/pnc_map_service.hpp"
+// #include "pnc_map_creator_base.h"
 #include "pnc_map_creator_straight.h"
 #include "pnc_map_creator_sturn.h"
 
 namespace Planning
 {
-  using base_msgs::srv::PNCMapService;
-  using std::placeholders:: _1;
-  using std::placeholders:: _2;
+    using base_msgs::srv::PNCMapService;  // 引用服务
 
-  class PNCMapServer : public rclcpp::Node
-  {
-  public:
-    PNCMapServer();
+    class PNCMapServer : public rclcpp::Node
+    {
+    public:
+        PNCMapServer();
 
-  private:
-    // 响应并发布地图的回调
-    void response_pnc_map_callback(const std::shared_ptr<PNCMapService::Request> request,
-                                   std::shared_ptr<PNCMapService::Response> response);
+    private:
+        // 响应并发布地图回调函数
+        void response_pnc_map_callback(const std::shared_ptr<PNCMapService::Request> request, 
+                                       const std::shared_ptr<PNCMapService::Response> response);
 
-  private:
-    std::shared_ptr<Planning::PncMapCreatorBase> pnc_map_creator_; // pnc地图创建器
-    rclcpp::Publisher<PNCMap>::SharedPtr pnc_map_pub_;             // 地图发布器
-    rclcpp::Publisher<MarkerArray>::SharedPtr pnc_map_rviz_pub_;   // 地图MarkerArray发布器
-    rclcpp::Service<PNCMapService>::SharedPtr pnc_map_server_;    // pnc地图服务器
-  };
-
+    private:
+        std::shared_ptr<PncMapCreatorBase> map_creator_; // 地图创建器，用智能指针管理
+        rclcpp::Publisher<PNCMap>::SharedPtr map_pnb_; // 地图发布器（规划模块使用）
+        rclcpp::Publisher<MarkerArray>::SharedPtr map_rviz_pnb_;// 地图markerarray发布器（rviz使用）
+        rclcpp::Service<PNCMapService>::SharedPtr map_service_; // 地图服务器
+        
+    };
 } // namespace Planning
 #endif // PNC_MAP_SERVER_H_

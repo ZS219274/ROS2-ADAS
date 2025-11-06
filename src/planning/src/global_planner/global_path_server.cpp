@@ -13,7 +13,7 @@ namespace Planning
 
     //初始化服务端
     global_path_server_ = this->create_service<GlobalPathService>(
-        "global_path_server",
+        "global_path_service",
         std::bind(&GlobalPathServer::response_global_path_callback, this, _1, _2));
   }
 

@@ -1,26 +1,3 @@
 # ROS2-ADAS
 基于规则的自动驾驶规划仿真
 
-配置.vscode/c_cpp_properties.json
-```json
-{
-    "configurations": [
-        {
-            "name": "Linux",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "/usr/local/include/**",
-                "/opt/ros/humble/include/**"
-            ],
-            "defines": [],
-            "compilerPath": "/home/ubuntu/llvm/bin/clang",
-            "cStandard": "c17",
-            "cppStandard": "c++17",
-            "intelliSenseMode": "linux-clang-x64",
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json"
-        }
-    ],
-    "version": 4
-}
-```
-

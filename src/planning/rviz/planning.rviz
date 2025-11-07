@@ -190,13 +190,13 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        {}
+        midline: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /planning/pnc_map_markarray
+        Value: /planning/pnc_map_markerarray
       Value: true
   Enabled: true
   Global Options:
@@ -259,10 +259,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0703978538513184
+      Pitch: 0.2603986859321594
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 1.1103994846343994
+      Yaw: 3.115400552749634
     Saved: ~
 Window Geometry:
   Displays:

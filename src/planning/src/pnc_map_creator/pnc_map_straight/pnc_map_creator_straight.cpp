@@ -69,16 +69,10 @@ namespace Planning
         pnc_map_.left_boundary.color.r = 1.0;   // 红色
         pnc_map_.left_boundary.color.g = 1.0;   // 绿色
         pnc_map_.left_boundary.color.b = 1.0;  // 蓝色
-
-        
+  
         // 右边界格式
         pnc_map_.right_boundary = pnc_map_.left_boundary;
-        // pnc_map_.right_boundary.type = Marker::LINE_STRIP;  // 连续线条
-        pnc_map_.right_boundary.id = 2;
-        // pnc_map_.right_boundary.color.r = 1.0;   // 红色
-        // pnc_map_.right_boundary.color.g = 1.0;   // 绿色
-        // pnc_map_.right_boundary.color.b = 1.0;  // 蓝色
-        
+        pnc_map_.right_boundary.id = 2;  
     }
 
     void PncMapCreatorStraight::draw_straight_x(const double &length, const double &plus_flag, const double &ratio) // 画直道x

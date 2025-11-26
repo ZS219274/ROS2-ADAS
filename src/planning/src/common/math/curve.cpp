@@ -57,7 +57,6 @@ namespace Planning
         }
 
         // 计算航向角
-
         for (int i = 1; i < path_size; i++)
         {
             if (i < path_size - 1)

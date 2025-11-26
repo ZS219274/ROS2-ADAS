@@ -53,6 +53,7 @@ namespace Planning
     }
 
     // 平滑参考线
+    reference_line_smoother_->smooth_reference_line(refer_line_);
 
     // 计算投影点参数
     Curve::cal_projection_param(refer_line_);
@@ -67,7 +68,8 @@ namespace Planning
     refer_line_rviz_.poses.clear();
 
     PoseStamped point_tmp;
-    for (const auto &point : refer_line_.refer_line) { 
+    for (const auto &point : refer_line_.refer_line)
+    {
       point_tmp.header = refer_line_rviz_.header;
       point_tmp.pose = point.pose.pose;
       refer_line_rviz_.poses.emplace_back(point_tmp);

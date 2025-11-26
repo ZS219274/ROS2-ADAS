@@ -211,22 +211,22 @@ namespace Planning
 
   void PlanningProcess::planning_callback() // 总流程回调
   {
-    //获取开始时间戳
+    // 获取开始时间戳
     const auto start_time = this->get_clock()->now();
-
 
     // 监听车辆定位
     get_location(car_);
 
     // 参考线
     const auto refer_line = reference_line_creator_->create_reference_line(global_path_, car_->local_point());
-    if (refer_line.refer_line.empty()) {
+    if (refer_line.refer_line.empty())
+    {
       RCLCPP_INFO(this->get_logger(), "Reference Line empty.");
       return;
     }
 
-    const auto refer_line_rviz = reference_line_creator_->reference_line_to_rviz();  // 显示参考线
-    reference_line_pub_->publish(refer_line_rviz);  // 发布显示参考线
+    const auto refer_line_rviz = reference_line_creator_->reference_line_to_rviz(); // 显示参考线
+    reference_line_pub_->publish(refer_line_rviz);                                  // 发布显示参考线
 
     // 主车和障碍物向参考线投影
 
@@ -246,7 +246,7 @@ namespace Planning
 
     // 更新车辆信息
     RCLCPP_INFO(this->get_logger(), "----car state: loc: (%.2f, %.2f), speed: %.2f, acceleration: %.2f, theta: %.2f, kappa: %.2f,",
-                car_->local_point().pose.position.x, 
+                car_->local_point().pose.position.x,
                 car_->local_point().pose.position.y,
                 car_->speed(), car_->acceleration(),
                 car_->theta(), car_->kappa());
@@ -254,9 +254,10 @@ namespace Planning
     const auto end_time = this->get_clock()->now();
     const double planning_total_time = (end_time - start_time).seconds();
     RCLCPP_INFO(this->get_logger(), "Planning total time: %fms\n", planning_total_time * 1000);
-    
+
     // 防止卡死
-    if (planning_total_time > 1.0) {
+    if (planning_total_time > 1.0)
+    {
       RCLCPP_ERROR(this->get_logger(), "Planning total time is too long: %fms\n", planning_total_time * 1000);
       rclcpp::shutdown();
     }

@@ -55,13 +55,11 @@ namespace Planning
     int grid_height = static_cast<int>(GRID_HEIGHT / RESOLUTION);
     
     if (start_grid_x < 0 || start_grid_x >= grid_width || start_grid_y < 0 || start_grid_y >= grid_height) {
-      RCLCPP_WARN(rclcpp::get_logger("AStar"), "Start point is out of map bounds");
-      // return createFallbackPath(pnc_map);
+      RCLCPP_ERROR(rclcpp::get_logger("AStar"), "Start point is out of map bounds");
     }
     
     if (goal_grid_x < 0 || goal_grid_x >= grid_width || goal_grid_y < 0 || goal_grid_y >= grid_height) {
-      RCLCPP_WARN(rclcpp::get_logger("AStar"), "Goal point is out of map bounds");
-      // return createFallbackPath(pnc_map);
+      RCLCPP_ERROR(rclcpp::get_logger("AStar"), "Goal point is out of map bounds");
     }
 
     // 初始化开放列表和关闭列表
@@ -237,30 +235,4 @@ namespace Planning
     // 如果不接近任何允许的点，则认为不可行
     return false;
   }
-  
-  // Path AStar::createFallbackPath(const PNCMap &pnc_map)
-  // {
-  //   // 回退到普通路径规划方式
-  //   global_path_.header.frame_id = pnc_map.header.frame_id;
-  //   global_path_.header.stamp = rclcpp::Clock().now();
-  //   global_path_.poses.clear();
-
-  //   PoseStamped pose_tmp;
-  //   pose_tmp.header = global_path_.header;
-  //   pose_tmp.pose.orientation.x = 0.0;
-  //   pose_tmp.pose.orientation.y = 0.0;
-  //   pose_tmp.pose.orientation.z = 0.0;
-  //   pose_tmp.pose.orientation.w = 1.0;
-
-  //   // 根据中线和右边界计算全局路径点，取中点作为路径点
-  //   const int midline_size = pnc_map.midline.points.size();
-  //   for (int i = 0; i < midline_size; i++)
-  //   {
-  //     pose_tmp.pose.position.x = (pnc_map.midline.points[i].x + pnc_map.right_boundary.points[i].x) / 2.0;
-  //     pose_tmp.pose.position.y = (pnc_map.midline.points[i].y + pnc_map.right_boundary.points[i].y) / 2.0;
-  //     global_path_.poses.emplace_back(pose_tmp);
-  //   }
-    
-  //   return global_path_;
-  // }
 }

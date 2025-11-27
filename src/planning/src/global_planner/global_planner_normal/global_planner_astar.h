@@ -32,13 +32,6 @@ namespace Planning
      * @return 如果点是允许的可行走点则返回true，否则返回false
      */
     bool isPointAllowed(double x, double y, const PNCMap &pnc_map, double resolution);
-    
-    /**
-     * @brief 创建回退路径（当A*算法失败时使用）
-     * @param pnc_map PNC地图
-     * @return 生成的路径
-     */
-    Path createFallbackPath(const PNCMap &pnc_map);
   };
 } // namespace Planning
 

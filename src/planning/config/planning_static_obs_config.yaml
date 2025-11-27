@@ -45,7 +45,7 @@ pnc_map:                            #　pnc地图
   speed_limit: 1.0                  #　道路限速
 
 global_path:                        #　全局路径
-  type: 0                           #　类型,　0:normal, 1: astar
+  type: 1                           #　类型,　0:normal, 1: astar
 
 local_path:                         #　局部路径
   curve_type: 2                     #　多项式类型,　0:一次, 1:三次, 2:五次 

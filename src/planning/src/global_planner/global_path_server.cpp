@@ -29,6 +29,11 @@ namespace Planning
       global_planner_creator_ = std::make_shared<GlobalPlannerNormal>();
     }
     break;
+    case static_cast<int32_t>(GlobalPlannerType::KASTAR):
+    {
+      global_planner_creator_ = std::make_shared<AStar>();
+    }
+    break;
     default:
       RCLCPP_WARN(this->get_logger(), "Invalid Global planner type!");
       return;

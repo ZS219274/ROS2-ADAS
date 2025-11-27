@@ -1,5 +1,5 @@
-#ifndef A_START_H
-#define A_START_H
+#ifndef GLOBAL_PLANNER_ASTAR_H
+#define GLOBAL_PLANNER_ASTAR_H
 
 #include "rclcpp/rclcpp.hpp"
 #include "global_planner_base.h"
@@ -35,4 +35,4 @@ namespace Planning
   };
 } // namespace Planning
 
-#endif // A_START_H
+#endif // GLOBAL_PLANNER_ASTAR_H

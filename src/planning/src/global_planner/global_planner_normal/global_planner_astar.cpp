@@ -31,11 +31,10 @@ namespace Planning
     // 计算起点和终点之间的距离，并增加一些边距
     double dx = goal_x - start_x;
     double dy = goal_y - start_y;
-    double distance = sqrt(dx * dx + dy * dy);
     
     // 设置地图尺寸为起点终点距离的2倍，确保有足够的边距
-    const double GRID_WIDTH = distance * 2.0 + 20.0;   // 宽度
-    const double GRID_HEIGHT = distance * 2.0 + 20.0;  // 高度
+    const double GRID_WIDTH = dx * 2.0 + 20.0;   // 宽度
+    const double GRID_HEIGHT = dy * 2.0 + 20.0;  // 高度
     const double RESOLUTION = 0.5;     // 每个栅格代表0.5米
     
     // 计算地图原点（确保起点和终点都在地图内）

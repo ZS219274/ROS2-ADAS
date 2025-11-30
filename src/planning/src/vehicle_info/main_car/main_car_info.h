@@ -10,6 +10,8 @@ namespace Planning
   {
   public:
     MainCar();
+
+    void vehicle_cartesian_to_frenet(const Referline &refer_line) override;
   };
 
 } // namespace Planning

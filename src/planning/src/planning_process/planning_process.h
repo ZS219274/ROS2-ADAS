@@ -60,9 +60,11 @@ namespace Planning
     void planning_callback();                // 总流程回调
 
   private:
-    std::unique_ptr<ConfigReader> planning_process_config_; // 规划总流程配置读取器
-    std::shared_ptr<VehicleInfoBase> car_;                  // 主车
-    double obs_dis_ = 0.0;                                  // 障碍物距离
+    std::unique_ptr<ConfigReader> planning_process_config_;   // 规划总流程配置读取器
+    std::shared_ptr<VehicleInfoBase> car_;                    // 主车
+    std::vector<std::shared_ptr<VehicleInfoBase>> obs_spawn_; // 生成障碍物合集，模拟感知
+    std::vector<std::shared_ptr<VehicleInfoBase>> obses_;       // 感知到的障碍物
+    double obs_dis_ = 0.0;                                    // 障碍物距离
 
     std::shared_ptr<StaticTransformBroadcaster> tf_broadcaster_; // 静态坐标广播器
     std::shared_ptr<TransformListener> tf_listener_;             // 静态坐标监听器

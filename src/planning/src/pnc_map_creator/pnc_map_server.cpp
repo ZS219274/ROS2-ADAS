@@ -24,10 +24,10 @@ namespace Planning
         RCLCPP_INFO(this->get_logger(), "pnc_map_server_node created");
 
         // 地图发布器，参数: 地图话题名，队列大小
-        map_pnb_ = this->create_publisher<PNCMap>("pnc_map", 10);
+        map_pub_ = this->create_publisher<PNCMap>("pnc_map", 10);
 
         // 地图markerarray发布器，参数: 地图话题名，队列大小
-        map_rviz_pnb_ = this->create_publisher<MarkerArray>("pnc_map_markerarray", 10);
+        map_rviz_pub_ = this->create_publisher<MarkerArray>("pnc_map_markerarray", 10);
 
         // 地图服务器，参数: 地图服务话题名，回调函数
         map_service_ = this->create_service<PNCMapService>(
@@ -59,12 +59,12 @@ namespace Planning
         response->pnc_map = pnc_map;
 
         // 发布地图，Planning node使用
-        map_pnb_->publish(pnc_map);
+        map_pub_->publish(pnc_map);
         RCLCPP_INFO(this->get_logger(), "pnc_map published");
 
         // 发布地图markerarray，rviz使用
         const auto pnc_map_markerarray= map_creator_->pnc_map_mark_array();
-        map_rviz_pnb_->publish(pnc_map_markerarray);
+        map_rviz_pub_->publish(pnc_map_markerarray);
         RCLCPP_INFO(this->get_logger(),"pnc_map for rviz published");
     }
 

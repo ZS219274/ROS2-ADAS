@@ -23,8 +23,8 @@ namespace Planning
 
     private:
         std::shared_ptr<PncMapCreatorBase> map_creator_; // 地图创建器，用智能指针管理
-        rclcpp::Publisher<PNCMap>::SharedPtr map_pnb_; // 地图发布器（规划模块使用）
-        rclcpp::Publisher<MarkerArray>::SharedPtr map_rviz_pnb_;// 地图markerarray发布器（rviz使用）
+        rclcpp::Publisher<PNCMap>::SharedPtr map_pub_; // 地图发布器（规划模块使用）
+        rclcpp::Publisher<MarkerArray>::SharedPtr map_rviz_pub_;// 地图markerarray发布器（rviz使用）
         rclcpp::Service<PNCMapService>::SharedPtr map_service_; // 地图服务器
         
     };

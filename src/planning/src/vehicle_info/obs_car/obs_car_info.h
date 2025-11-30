@@ -9,7 +9,9 @@ namespace Planning
   class ObsCar : public VehicleInfoBase // 障碍物车
   {
   public:
-    ObsCar();
+    ObsCar(const int &id);
+
+    void vehicle_cartesian_to_frenet(const Referline &refer_line) override;
   };
 
 } // namespace Planning

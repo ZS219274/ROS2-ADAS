@@ -162,7 +162,7 @@ namespace Planning
         // 将栅格坐标转换为世界坐标
         double world_x = origin_x + current->x * RESOLUTION;
         double world_y = origin_y + current->y * RESOLUTION;
-        waypoints.push_back({world_x, world_y});
+        waypoints.emplace_back(std::pair{world_x, world_y});
         current = current->parent;
       }
 
@@ -183,7 +183,7 @@ namespace Planning
       for (const auto& point : waypoints) {
         pose_tmp.pose.position.x = point.first;
         pose_tmp.pose.position.y = point.second;
-        global_path_.poses.push_back(pose_tmp);
+        global_path_.poses.emplace_back(pose_tmp);
       }
       
       RCLCPP_INFO(rclcpp::get_logger("AStar"), "Path found with %zu waypoints", waypoints.size());

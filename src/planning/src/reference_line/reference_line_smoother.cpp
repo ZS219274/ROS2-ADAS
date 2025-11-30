@@ -7,7 +7,7 @@ namespace Planning
 {
   ReferenceLineSmoother::ReferenceLineSmoother() // 参考线平滑
   {
-    RCLCPP_INFO(rclcpp::get_logger("reference_line"), "参考线平滑已创建");
+    RCLCPP_INFO(rclcpp::get_logger("reference_line"), "Reference line smoother has been created");
 
     // 读取配置文件
     reference_line_config_ = std::make_unique<ConfigReader>();

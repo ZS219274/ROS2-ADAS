@@ -63,7 +63,7 @@ namespace Planning
     std::unique_ptr<ConfigReader> planning_process_config_;   // 规划总流程配置读取器
     std::shared_ptr<VehicleInfoBase> car_;                    // 主车
     std::vector<std::shared_ptr<VehicleInfoBase>> obs_spawn_; // 生成障碍物合集，模拟感知
-    std::vector<std::shared_ptr<VehicleInfoBase>> obses_;       // 感知到的障碍物
+    std::vector<std::shared_ptr<VehicleInfoBase>> obses_;     // 感知到的障碍物
     double obs_dis_ = 0.0;                                    // 障碍物距离
 
     std::shared_ptr<StaticTransformBroadcaster> tf_broadcaster_; // 静态坐标广播器
@@ -77,6 +77,7 @@ namespace Planning
 
     std::shared_ptr<ReferenceLineCreator> reference_line_creator_; // 参考线创建器
     rclcpp::Publisher<Path>::SharedPtr reference_line_pub_;        // 参考线发布器(rviz用)
+    std::shared_ptr<DecisionCenter> decision_center_;              // 决策器
     rclcpp::TimerBase::SharedPtr timer_;                           // 定时器
   };
 } // namespace Planning

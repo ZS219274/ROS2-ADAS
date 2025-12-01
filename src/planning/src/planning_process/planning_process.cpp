@@ -35,6 +35,9 @@ namespace Planning
     // 创建参考线和参考线的发布器
     reference_line_creator_ = std::make_unique<ReferenceLineCreator>();
     reference_line_pub_ = this->create_publisher<Path>("reference_line", 10);
+
+    // 创建决策器
+    decision_center_ = std::make_unique<DecisionCenter>();
   }
 
   bool PlanningProcess::process() // 总流程
@@ -267,6 +270,7 @@ namespace Planning
               { return obs1->s() < obs2->s(); });
 
     // 路径决策
+    decision_center_->make_path_decision(car_, obses_);
 
     // 路径规划
 
@@ -296,5 +300,4 @@ namespace Planning
       rclcpp::shutdown();
     }
   }
-
 } // namespace Planning

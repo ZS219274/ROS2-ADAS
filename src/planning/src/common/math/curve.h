@@ -11,138 +11,58 @@
 
 namespace Planning
 {
-    // 目标点在笛卡尔下的参数
-    struct Cartesian {
-      double x;
-      double y;
-      double theta;
-      double speed;
-      double a;
-      double kappa;
+    using base_msgs::msg::LocalPath;
+    using base_msgs::msg::Referline;
+    using geometry_msgs::msg::PoseStamped;
+    using nav_msgs::msg::Path;
+
+    constexpr double delta_s_min = 1.0;
+    constexpr double kMathEpsilon = 1.0e-6;
+
+    class Curve // 曲线
+    {
+    public:
+        Curve() = default;
+
+        static double NormalizeAngle(const double &angle);   // 归一化角度,约束到[-pi, pi]
+
+        // 笛卡尔转自然坐标系
+        static void cartesian_to_frenet(const double &x, const double &y, const double &theta,
+                                        const double &speed, const double &a, const double &kappa, // 输入1：目标点在笛卡尔下的参数 x y theta speed a
+                                        const double &rs, const double &rx, const double &ry,
+                                        const double &rtheta, const double &rkappa, const double &rdkappa, // 输入2：目标点在参考线的投影点在笛卡尔下的参数 rs rx ry rtheta rkappa rdkappa
+                                        double &s, double &ds_dt, double &dds_dt,
+                                        double &l, double &dl_ds, double &dl_dt, double &ddl_ds, double &ddl_dt); // 输出：目标点在自然坐标系下的参数 s ds_dt dds_dt l dl_ds dl_dt ddl_ds ddl_dt
+
+        // 自然坐标系转笛卡尔
+        static void frenet_to_cartesian(const double &s, const double &ds_dt, const double &dds_dt,
+                                        const double &l, const double &dl_ds, const double &ddl_ds, // 输入1：目标点在自然坐标系下的参数 s ds_dt dds_dt l dl_ds dl_dt ddl_ds ddl_dt                                       
+                                        const double &rs, const double &rx, const double &ry,
+                                        const double &rtheta, const double &rkappa, const double &rdkappa, // 输入2：目标点在参考线的投影点在笛卡尔下的参数 rs rx ry rtheta rkappa rdkappa
+                                        double &x, double &y, double &theta,
+                                        double &speed, double &a, double &kappa); // 输出：目标点在笛卡尔下的参数 x y theta speed a
+
+        // 找匹配点的下标
+        static int find_match_point(const Path &path, const int &last_match_point_index,const PoseStamped &target_point); // 利用上一帧
+        static int find_match_point(const Referline &path, const PoseStamped &target_point); // 在参考线上查找匹配点下标
+        static int find_match_point(const LocalPath &path, const PoseStamped &target_point); // 在局部路径上查找匹配点下标
+        static int find_match_point(const Referline &path, const double &rs); // 通过rs查找匹配点下标
+
+
+        // 找到投影点
+        static void find_projection_point(const Referline &referline, const PoseStamped &target_point, // 输入：参考线和目标点
+                                          double &rs, double &rx, double &ry,
+                                          double &rtheta, double &rkappa, double &rdkappa); // 输出：目标点在参考线的投影点在笛卡尔下的参数 rs rx ry rtheta rkappa rdkappa
+
+        static void find_projection_point(const LocalPath &local_path, const PoseStamped &target_point, // 输入：局部路径和目标点
+                                          double &rs, double &rx, double &ry,
+                                          double &rtheta, double &rkappa, double &rdkappa); // 输出：目标点在局部路径的投影点在笛卡尔下的参数 rs rx ry rtheta rkappa rdkappa
+
+        // 计算投影点参数
+        static void cal_projection_param(Referline &refer_line); // 参考线
+        static void cal_projection_param(LocalPath &local_path); // 局部路径
+        
+
     };
-    // 目标点在（参考线/局部路径）的投影点的参数
-    struct Referential {
-      double rs;
-      double rx;
-      double ry;
-      double rtheta;
-      double rkappa;
-      double rdkappa;
-    };
-    // 目标点在自然系下的参数
-    struct Frenet {
-      double s;
-      double ds_dt;
-      double dds_dt;
-      double l;
-      double dl_ds;
-      double dl_dt;
-      double ddl_ds;
-      double ddl_dt;
-    };
-  
-  using  nav_msgs::msg::Path;
-  using  geometry_msgs::msg::PoseStamped;
-  using  base_msgs::msg::Referline;
-  using  base_msgs::msg::LocalPath;
-  constexpr double kMathEpsilon = 1.0e-6;
-  constexpr double delta_s_min = 1.0;
-
-  class Curve // 曲线
-  {
-  public:
-    Curve() = default;
-
-    /** 
-     * @brief 归一化角度到[-pi, pi)
-     * @param angle 输入角度
-     * @return 归一化后的角度
-    */
-    static double NormalizedAngle(const double &angle);
-
-    /** 
-     * @brief 笛卡尔转自然坐标系
-     * @param cartesian 目标点在笛卡尔坐标系参数
-     * @param frenet 目标点在自然坐标系参数
-     * @return 无
-     */
-    static void cartesian_to_frenet(const Cartesian &cartesian, const Referential &ref, Frenet &frenet);
-
-    /** 
-     * @brief  自然坐标系转笛卡尔
-     * @param frenet 目标点在自然坐标系参数
-     * @param cartesian 目标点在笛卡尔坐标系参数
-     * @return 无
-     */
-    static void frenet_to_cartesian(const Frenet &frenet, const Referential &ref, Cartesian &cartesian);
-
-    /** 
-     * @brief 利用上一帧匹配点下标寻找匹配点下标
-     * @param path 路径
-     * @param last_match_point_index 上次匹配点下标
-     * @param target_point 车辆位置点
-     * @return 匹配点下标
-    */
-    static int find_match_point(const Path &path, const int &last_match_point_index, const PoseStamped &target_point);
-
-    /**
-     * @brief 在参考线上查找匹配点
-     * @param refer_line 参考线
-     * @param target_point 目标点
-     * @return 无
-     */
-    static int find_match_point(const Referline &refer_line, const PoseStamped &target_point);
-
-    /**
-     * @brief 通过rs在参考线上查找匹配点
-     * @param refer_line 参考线
-     * @param rs 路径点s值
-     * @return 无
-     */
-    static int find_match_point(const Referline &refer_line, const double &rs);
-
-    /**
-     * @brief 在路径上查找匹配点
-     * @param local_path 路径
-     * @param target_point 目标点
-     * @return 无
-     */
-    static int find_match_point(const LocalPath &local_path, const PoseStamped &target_point);
-
-    /**
-     * @brief 在参考线上查找投影点
-     * @param refer_line 参考线
-     * @param target_point 投影点
-     * @param ref 投影点在参考线参数
-     * @return 无
-     */
-    static void find_projection_point(const Referline &refer_line, const PoseStamped &target_point, Referential &ref);
-
-    /**
-     * @brief 在路径上查找投影点
-     * @param local_path 路径
-     * @param target_point 投影点
-     * @param ref 投影点在路径参数
-     * @return 无
-     */
-    static void find_projection_point(const LocalPath &local_path, const PoseStamped &target_point, Referential &ref);
-
-    /**
-     * @brief 计算投影点参数
-     * @param refer_line 参考线
-     * @return 无
-     */
-    static void cal_projection_param(Referline &refer_line); //参考线
-
-    /**
-     * @brief 计算路径投影点参数
-     * @param path 路径
-     * @return 无
-     */
-    static void cal_projection_param(LocalPath &local_path); //路径
-
-
-  private:
-  };
 } // namespace Planning
 #endif // CURVE_H_

@@ -278,16 +278,14 @@ namespace Planning
     decision_center_->make_path_decision(car_, obses_);
 
     // 路径规划
-    const auto local_path = local_path_planner_->create_local_path(refer_line, car_, decision_center_); // 局部路径规划
+    const auto local_path = local_path_planner_->create_local_path(refer_line, car_, decision_center_); // 生成局部路径
     if (local_path.local_path.empty())
     {
-      RCLCPP_ERROR(this->get_logger(), "Local Path empty.");
+      RCLCPP_ERROR(this->get_logger(), "局部路径为空");
       return;
     }
-
-    local_path_planner_->path_to_rviz();
-    const auto local_path_rviz = local_path_planner_->local_path_rviz();
-    local_path_pub_->publish(local_path_rviz); // 发布显示局部路径
+    const auto local_path_rviz = local_path_planner_->path_to_rviz(); // 生成rviz的局部路径
+    local_path_pub_->publish(local_path_rviz);                        // 发布局部路径
 
     // 障碍物向路径投影
 

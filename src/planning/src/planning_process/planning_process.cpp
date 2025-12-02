@@ -38,6 +38,11 @@ namespace Planning
 
     // 创建决策器
     decision_center_ = std::make_unique<DecisionCenter>();
+
+    // 创建局部(路径/速度)规划器和发布器
+    local_path_planner_ = std::make_shared<LocalPathPlanner>();
+    local_speed_planner_ = std::make_unique<LocalSpeedsPlanner>();
+    local_path_pub_ = this->create_publisher<Path>("local_path", 10);
   }
 
   bool PlanningProcess::process() // 总流程
@@ -273,6 +278,16 @@ namespace Planning
     decision_center_->make_path_decision(car_, obses_);
 
     // 路径规划
+    const auto local_path = local_path_planner_->create_local_path(refer_line, car_, decision_center_); // 局部路径规划
+    if (local_path.local_path.empty())
+    {
+      RCLCPP_ERROR(this->get_logger(), "Local Path empty.");
+      return;
+    }
+
+    local_path_planner_->path_to_rviz();
+    const auto local_path_rviz = local_path_planner_->local_path_rviz();
+    local_path_pub_->publish(local_path_rviz); // 发布显示局部路径
 
     // 障碍物向路径投影
 

@@ -77,8 +77,14 @@ namespace Planning
 
     std::shared_ptr<ReferenceLineCreator> reference_line_creator_; // 参考线创建器
     rclcpp::Publisher<Path>::SharedPtr reference_line_pub_;        // 参考线发布器(rviz用)
-    std::shared_ptr<DecisionCenter> decision_center_;              // 决策器
-    rclcpp::TimerBase::SharedPtr timer_;                           // 定时器
+
+    std::shared_ptr<DecisionCenter> decision_center_; // 决策器
+
+    std::shared_ptr<LocalPathPlanner> local_path_planner_;    // 局部路径规划器
+    std::shared_ptr<LocalSpeedsPlanner> local_speed_planner_; // 局部速度规划器
+    rclcpp::Publisher<Path>::SharedPtr local_path_pub_;       // 局部路径发布器(rviz用)
+
+    rclcpp::TimerBase::SharedPtr timer_; // 定时器
   };
 } // namespace Planning
 #endif // PLANNING_NODE_H

@@ -75,9 +75,9 @@ namespace Planning
 
         // 计算a
         const double delta_theta_prime = one_minus_kappa_l / cos_delta_theta * cartesian.kappa - ref.rkappa;
-        cartesian.a = frenet.dds_dt * one_minus_kappa_l / cos_delta_theta + 
-            (frenet.ds_dt * frenet.ds_dt) / cos_delta_theta *
-            (frenet.dl_ds * delta_theta_prime - kappa_l_prime);
+        cartesian.a = frenet.dds_dt * one_minus_kappa_l / cos_delta_theta +
+                      (frenet.ds_dt * frenet.ds_dt) / cos_delta_theta *
+                          (frenet.dl_ds * delta_theta_prime - kappa_l_prime);
     }
 
     int Curve::find_match_point(const Path &path, const int &last_match_point_index, const PoseStamped &target_point)
@@ -129,6 +129,49 @@ namespace Planning
         return closest_point_index;
     }
 
+    int Curve::find_match_point(const Referline &refer_line, const double &rs)
+    {
+        const int path_size = refer_line.refer_line.size();
+        if (path_size <= 1)
+        {
+            return path_size - 1;
+        }
+        double min_delta_s = std::numeric_limits<double>::max();
+        int closest_point_index = -1;
+        for (int i = 0; i < path_size; ++i)
+        {
+            double delta_s = std::fabs(rs - refer_line.refer_line[i].rs);
+            if (delta_s < min_delta_s)
+            {
+                min_delta_s = delta_s;
+                closest_point_index = i;
+            }
+        }
+        return closest_point_index;
+    }
+
+    int Curve::find_match_point(const LocalPath &local_path, const PoseStamped &target_point)
+    {
+        const int path_size = local_path.local_path.size();
+        if (path_size <= 1)
+        {
+            return path_size - 1;
+        }
+        double min_dis = std::numeric_limits<double>::max();
+        int closest_point_index = -1;
+        for (int i = 0; i < path_size; ++i)
+        {
+            double dis = std::hypot(local_path.local_path[i].pose.pose.position.x - target_point.pose.position.x,
+                                    local_path.local_path[i].pose.pose.position.y - target_point.pose.position.y);
+            if (dis < min_dis)
+            {
+                min_dis = dis;
+                closest_point_index = i;
+            }
+        }
+        return closest_point_index;
+    }
+
     void Curve::find_projection_point(const Referline &refer_line, const PoseStamped &target_point, Referential &ref)
     {
         // 简化：用匹配点近似替代，前提，参考线足够密且平滑
@@ -144,6 +187,22 @@ namespace Planning
         ref.rtheta = refer_line.refer_line[max_index].rtheta;
         ref.rkappa = refer_line.refer_line[max_index].rkappa;
         ref.rdkappa = refer_line.refer_line[max_index].rdkappa;
+    }
+
+    void Curve::find_projection_point(const LocalPath &local_path, const PoseStamped &target_point, Referential &ref)
+    {
+        const int max_index = find_match_point(local_path, target_point);
+        if (max_index < 0)
+        {
+            RCLCPP_ERROR(rclcpp::get_logger("math"), "find projection point failed, max_index < 0");
+            return;
+        }
+        ref.rx = local_path.local_path[max_index].pose.pose.position.x;
+        ref.ry = local_path.local_path[max_index].pose.pose.position.y;
+        ref.rs = local_path.local_path[max_index].rs;
+        ref.rtheta = local_path.local_path[max_index].rtheta;
+        ref.rkappa = local_path.local_path[max_index].rkappa;
+        ref.rdkappa = local_path.local_path[max_index].rdkappa;
     }
 
     // 计算投影点参数
@@ -245,6 +304,68 @@ namespace Planning
                 else
                 {
                     refer_line.refer_line[i].rdkappa = (refer_line.refer_line[i].rkappa - refer_line.refer_line[i - 1].rkappa) / dis;
+                }
+            }
+        }
+    }
+    void Curve::cal_projection_param(LocalPath &local_path)
+    {
+        const int path_size = local_path.local_path.size();
+        if (path_size < 3)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("math"), "refer_line too short, path_size < 3");
+            return;
+        }
+
+        // 计算rs
+        double rs_tmp = 0.0;
+        for (int i = 1; i < path_size; i++)
+        {
+            if (i == 1)
+            {
+                rs_tmp = 0.0;
+            }
+            else
+            {
+                // 累加每两个点之间的距离
+                rs_tmp += std::hypot(local_path.local_path[i].pose.pose.position.x - local_path.local_path[i - 1].pose.pose.position.x,
+                                     local_path.local_path[i].pose.pose.position.y - local_path.local_path[i - 1].pose.pose.position.y);
+            }
+            local_path.local_path[i].rs = rs_tmp;
+        }
+        // 计算航向角和曲率，因为之前frenet转笛卡尔已经算过，直接赋值
+        for (int i = 1; i < path_size; i++)
+        {
+            local_path.local_path[i].rtheta = local_path.local_path[i].theta;
+            local_path.local_path[i].rkappa = local_path.local_path[i].kappa;
+        }
+        // 获取曲率变化率
+        for (int i = 1; i < path_size - 1; i++)
+        {
+            if (i < path_size - 1)
+            {
+                const double dis = std::hypot(local_path.local_path[i + 1].pose.pose.position.x - local_path.local_path[i].pose.pose.position.x,
+                                              local_path.local_path[i + 1].pose.pose.position.y - local_path.local_path[i].pose.pose.position.y);
+                if (dis <= kMathEpsilon)
+                {
+                    local_path.local_path[i].rdkappa = 0.0;
+                }
+                else
+                {
+                    local_path.local_path[i].rdkappa = (local_path.local_path[i + 1].rkappa - local_path.local_path[i].rkappa) / dis;
+                }
+            }
+            else
+            {
+                const double dis = std::hypot(local_path.local_path[i].pose.pose.position.x - local_path.local_path[i - 1].pose.pose.position.x,
+                                              local_path.local_path[i].pose.pose.position.y - local_path.local_path[i - 1].pose.pose.position.y);
+                if (dis <= kMathEpsilon)
+                {
+                    local_path.local_path[i].rdkappa = 0.0;
+                }
+                else
+                {
+                    local_path.local_path[i].rdkappa = (local_path.local_path[i].rkappa - local_path.local_path[i - 1].rkappa) / dis;
                 }
             }
         }

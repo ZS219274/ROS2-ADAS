@@ -20,7 +20,7 @@ namespace Planning
       double a;
       double kappa;
     };
-    // 目标点在参考线的投影点在笛卡尔下的参数
+    // 目标点在（参考线/局部路径）的投影点的参数
     struct Referential {
       double rs;
       double rx;
@@ -87,15 +87,31 @@ namespace Planning
 
     /**
      * @brief 在参考线上查找匹配点
-     * @param path 参考线
+     * @param refer_line 参考线
      * @param target_point 目标点
      * @return 无
      */
     static int find_match_point(const Referline &refer_line, const PoseStamped &target_point);
 
     /**
-     * @brief 在参考线上查找投影点点
-     * @param path 参考线
+     * @brief 通过rs在参考线上查找匹配点
+     * @param refer_line 参考线
+     * @param rs 路径点s值
+     * @return 无
+     */
+    static int find_match_point(const Referline &refer_line, const double &rs);
+
+    /**
+     * @brief 在路径上查找匹配点
+     * @param local_path 路径
+     * @param target_point 目标点
+     * @return 无
+     */
+    static int find_match_point(const LocalPath &local_path, const PoseStamped &target_point);
+
+    /**
+     * @brief 在参考线上查找投影点
+     * @param refer_line 参考线
      * @param target_point 投影点
      * @param ref 投影点在参考线参数
      * @return 无
@@ -103,11 +119,27 @@ namespace Planning
     static void find_projection_point(const Referline &refer_line, const PoseStamped &target_point, Referential &ref);
 
     /**
+     * @brief 在路径上查找投影点
+     * @param local_path 路径
+     * @param target_point 投影点
+     * @param ref 投影点在路径参数
+     * @return 无
+     */
+    static void find_projection_point(const LocalPath &local_path, const PoseStamped &target_point, Referential &ref);
+
+    /**
      * @brief 计算投影点参数
      * @param refer_line 参考线
      * @return 无
      */
     static void cal_projection_param(Referline &refer_line); //参考线
+
+    /**
+     * @brief 计算路径投影点参数
+     * @param path 路径
+     * @return 无
+     */
+    static void cal_projection_param(LocalPath &local_path); //路径
 
 
   private:

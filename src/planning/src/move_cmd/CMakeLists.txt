@@ -37,6 +37,12 @@ foreach(target ${MOVE_TARGETS})
   )
 endforeach()
 
+#实际位置赋值开关
+option(USE_ACTUAL_POS_MACRO "Enable USE_ACYUAL_POS" OFF)
+if (USE_ACTUAL_POS_MACRO)
+    target_compile_definitions(car_move_cmd PUBLIC USE_ACTUAL_POS_MACRO)
+endif()
+
 #安装动态库、节点和相关目录
 install (TARGETS 
   ${MOVE_TARGETS}

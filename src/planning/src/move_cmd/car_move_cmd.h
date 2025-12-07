@@ -6,43 +6,42 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "tf2_ros/transform_broadcaster.h"
 #include <cmath>
-
+#include <memory>
 #include "config_reader.h"
 #include "main_car_info.h"
+#include "vehicle_info_base.h"
 
 namespace Planning
 {
   using namespace std::chrono_literals;
+  using std::placeholders::_1;
+
   using base_msgs::msg::LocalTrajectory;
   using geometry_msgs::msg::TransformStamped;
-  using std::placeholders::_1;
   using tf2_ros::TransformBroadcaster;
 
-  struct Car_param
+  struct car_param
   {
-    /*加速度**加加速度*后面看能力自己加*/
-    double pos_x_ = 0.0; // 车辆位置x
-    double pos_y_ = 0.0; // 车辆位置y
-    double theta_ = 0.0; // 车辆航向角
-    double speed_ = 0.0; // 车辆速度
+    double pose_x_ = 0.0; // x坐标
+    double pose_y_ = 0.0; // y坐标
+    double theta_ = 0.0;  // 航向角
+    double speed_ = 0.0;  // 速度
   };
 
-  class CarMoveCmd : public rclcpp::Node
+  class CarMoveCmd : public rclcpp::Node // 主车运动指令
   {
   public:
     CarMoveCmd();
-  
+
   private:
-   // 广播主车位姿信息
-    void car_broadcast_tf(const LocalTrajectory::SharedPtr trajectory); 
-  
+    void car_broadcast_tf(const LocalTrajectory::SharedPtr trajectory); // 广播主车坐标变换
+
   private:
-    std::unique_ptr<ConfigReader> move_cmd_config_;                   // 配置
-    std::shared_ptr<TransformBroadcaster> broadcaster_;               // 广播车辆位姿信息
-    rclcpp::Subscription<LocalTrajectory>::SharedPtr trajectory_sub_; // 轨迹订阅器
-    std::shared_ptr<VehicleInfoBase> car_;                            // 主车对象（仅用于初始化）
-    Car_param car_param_;                                             // 主车信息
+    std::unique_ptr<ConfigReader> move_cmd_config_;                         // 运动指令配置
+    std::shared_ptr<TransformBroadcaster> broadcaster_;                     // 变换广播器
+    rclcpp::Subscription<LocalTrajectory>::SharedPtr local_trajectory_sub_; // 局部轨迹订阅
+    std::shared_ptr<VehicleInfoBase> car_;                                      // 主车,仅用于初始化
+    car_param car_param_;                                                   // 主车参数
   };
 } // namespace Planning
-
 #endif // CAR_MOVE_CMD_H_

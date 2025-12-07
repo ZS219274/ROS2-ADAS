@@ -5,7 +5,7 @@ namespace Planning
 {
     LocalPathPlanner::LocalPathPlanner() // 局部路径规划器
     {
-        RCLCPP_INFO(rclcpp::get_logger("local_path"), "局部路径规划已创建");
+        RCLCPP_INFO(rclcpp::get_logger("local_path_planner.cpp"), "局部路径规划已创建");
 
         // 读取配置文件
         local_path_config_ = std::make_unique<ConfigReader>();
@@ -115,7 +115,7 @@ namespace Planning
 
         // 计算投影点参数 119
         Curve::cal_projection_param(local_path_);
-        RCLCPP_INFO(rclcpp::get_logger("local_path"), "局部路径投影点参数计算完成,size = %ld", local_path_.local_path.size());
+        RCLCPP_INFO(rclcpp::get_logger("local_path_planner.cpp"), "局部路径投影点参数计算完成,size = %ld", local_path_.local_path.size());
 
         return local_path_;
     }

@@ -4,7 +4,7 @@ namespace Planning
 {
   ReferenceLineCreator::ReferenceLineCreator()
   {
-    RCLCPP_INFO(rclcpp::get_logger("ReferenceLineCreator"), "ReferenceLineCreator created.");
+    RCLCPP_INFO(rclcpp::get_logger("reference_line_creator.cpp"), "ReferenceLineCreator created.");
     // 读取配置文件
     reference_line_config_ = std::make_unique<ConfigReader>();
     reference_line_config_->read_reference_line_config();
@@ -27,7 +27,7 @@ namespace Planning
     last_match_point_index_ = match_point_index_; // 保存刚找到的匹配点到上一帧（迭代）
     if (match_point_index_ < 0)
     {
-      RCLCPP_ERROR(rclcpp::get_logger("ReferenceLineCreator"), "match point index error.");
+      RCLCPP_ERROR(rclcpp::get_logger("reference_line_creator.cpp"), "match point index error.");
       return refer_line_;
     }
 
@@ -57,7 +57,7 @@ namespace Planning
 
     // 计算投影点参数
     Curve::cal_projection_param(refer_line_);
-    RCLCPP_INFO(rclcpp::get_logger("ReferenceLineCreator"),
+    RCLCPP_INFO(rclcpp::get_logger("reference_line_creator.cpp"),
                 "reference line created, match point index = %d, front index = %d, back index = %d. size = %ld",
                 match_point_index_, front_index_, back_index_, refer_line_.refer_line.size());
     return refer_line_;

@@ -7,7 +7,7 @@ namespace Planning
 {
   ReferenceLineSmoother::ReferenceLineSmoother() // 参考线平滑
   {
-    RCLCPP_INFO(rclcpp::get_logger("reference_line"), "Reference line smoother has been created");
+    RCLCPP_INFO(rclcpp::get_logger("reference_line_smoother.cpp"), "Reference line smoother has been created");
 
     // 读取配置文件
     reference_line_config_ = std::make_unique<ConfigReader>();
@@ -63,8 +63,6 @@ namespace Planning
       // |                                       6W1+2W2+W3   -4W1-W2         W1
       // |                                                    5W1+2W2+W3    -2W1-W2
       // |                                                                   W1+W2+W3
-
-      // 只填充上三角部分
       for (int i = 0; i < n; ++i)
       {
         if (i == 0) // 第0行
@@ -120,46 +118,45 @@ namespace Planning
 
     OsqpEigen::Solver solver; // 创建求解器
 
-    solver.settings()->setVerbosity(false); // 设置
-    solver.settings()->setWarmStart(true);  // 设置
+    solver.settings()->setVerbosity(false);
+    solver.settings()->setWarmStart(true);
 
-    // 初始化
     solver.data()->setNumberOfVariables(2 * n);   // 设置变量个数
     solver.data()->setNumberOfConstraints(2 * n); // 设置约束个数
 
     if (!solver.data()->setHessianMatrix(P))
     {
-      RCLCPP_ERROR(rclcpp::get_logger("reference_line"), "设置二次型矩阵失败");
+      RCLCPP_ERROR(rclcpp::get_logger("reference_line_smoother.cpp"), "设置二次型矩阵失败");
       return;
     }
 
     if (!solver.data()->setGradient(Q))
     {
-      RCLCPP_ERROR(rclcpp::get_logger("reference_line"), "设置一次项向量失败");
+      RCLCPP_ERROR(rclcpp::get_logger("reference_line_smoother.cpp"), "设置一次项向量失败");
       return;
     }
 
     if (!solver.data()->setLinearConstraintsMatrix(A))
     {
-      RCLCPP_ERROR(rclcpp::get_logger("reference_line"), "设置线性约束矩阵失败");
+      RCLCPP_ERROR(rclcpp::get_logger("reference_line_smoother.cpp"), "设置线性约束矩阵失败");
       return;
     }
 
     if (!solver.data()->setLowerBound(lowerBound))
     {
-      RCLCPP_ERROR(rclcpp::get_logger("reference_line"), "设置下界失败");
+      RCLCPP_ERROR(rclcpp::get_logger("reference_line_smoother.cpp"), "设置下界失败");
       return;
     }
 
     if (!solver.data()->setUpperBound(upperBound))
     {
-      RCLCPP_ERROR(rclcpp::get_logger("reference_line"), "设置上界失败");
+      RCLCPP_ERROR(rclcpp::get_logger("reference_line_smoother.cpp"), "设置上界失败");
       return;
     }
 
     if (!solver.initSolver())
     {
-      RCLCPP_ERROR(rclcpp::get_logger("reference_line"), "初始化求解器失败");
+      RCLCPP_ERROR(rclcpp::get_logger("reference_line_smoother.cpp"), "初始化求解器失败");
       return;
     }
 
@@ -168,7 +165,7 @@ namespace Planning
     // 求解
     if (solver.solveProblem() != OsqpEigen::ErrorExitFlag::NoError)
     {
-      RCLCPP_ERROR(rclcpp::get_logger("reference_line"), "求解失败");
+      RCLCPP_ERROR(rclcpp::get_logger("reference_line_smoother.cpp"), "求解失败");
       return;
     }
 

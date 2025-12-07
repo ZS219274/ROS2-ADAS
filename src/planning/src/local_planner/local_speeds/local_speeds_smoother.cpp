@@ -4,6 +4,6 @@ namespace Planning
 {
   LocalSpeedsSmoother::LocalSpeedsSmoother() // 局部速度平滑器
   {
-    RCLCPP_INFO(rclcpp::get_logger("LocalSpeedsSmoother"), "LocalSpeedsSmoother created.");
+    RCLCPP_INFO(rclcpp::get_logger("local_speeds_smoother.cpp"), "LocalSpeedsSmoother created.");
   }
 } // namespace Planning

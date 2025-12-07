@@ -4,6 +4,6 @@ namespace Planning
 {
   LocalSpeedsPlanner::LocalSpeedsPlanner() // 局部速度规划器
   {
-    RCLCPP_INFO(rclcpp::get_logger("LocalSpeedsPlanner"), "LocalSpeedsPlanner created");
+    RCLCPP_INFO(rclcpp::get_logger("local_speeds_planner.cpp"), "LocalSpeedsPlanner created");
   }
 } // namespace Planning

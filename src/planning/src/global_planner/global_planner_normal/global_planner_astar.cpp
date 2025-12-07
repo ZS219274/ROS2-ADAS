@@ -11,7 +11,7 @@ namespace Planning
 {
   AStar::AStar()  // A* 全局规划器
   {
-    RCLCPP_INFO(rclcpp::get_logger("AStar"), "A* global planner created.");
+    RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "A* global planner created.");
     global_planner_config_ = std::make_unique<ConfigReader>();
     global_planner_config_->read_global_path_config();
     global_plannaer_type_ = static_cast<int32_t>(GlobalPlannerType::KASTAR);
@@ -19,7 +19,7 @@ namespace Planning
 
   Path AStar::search_global_path(const PNCMap &pnc_map) // 全局路径搜索
   {
-    RCLCPP_INFO(rclcpp::get_logger("global_path"), "AStar search_global_path!");
+    RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "AStar search_global_path!");
     
     // 计算起点和终点坐标（道路中线和右边界的中点）
     double start_x = (pnc_map.midline.points.front().x + pnc_map.right_boundary.points.front().x) / 2.0;
@@ -186,9 +186,9 @@ namespace Planning
         global_path_.poses.emplace_back(pose_tmp);
       }
       
-      RCLCPP_INFO(rclcpp::get_logger("AStar"), "Path found with %zu waypoints", waypoints.size());
+      RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "Path found with %zu waypoints", waypoints.size());
     } else {
-      RCLCPP_WARN(rclcpp::get_logger("AStar"), "Failed to find a path using A*, fallback to normal path");
+      RCLCPP_WARN(rclcpp::get_logger("global_planner_astar.cpp"), "Failed to find a path using A*, fallback to normal path");
       // return createFallbackPath(pnc_map);
     }
 
@@ -197,7 +197,7 @@ namespace Planning
       delete pair.second;
     }
 
-    RCLCPP_INFO(rclcpp::get_logger("global_path"), "AStar global_path created points size: %ld!", global_path_.poses.size());
+    RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "AStar global_path created points size: %ld!", global_path_.poses.size());
     return global_path_;
   }
   

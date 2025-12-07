@@ -4,7 +4,7 @@ namespace Planning
 {
   GlobalPlannerNormal::GlobalPlannerNormal() // 普通全局规划器
   {
-    RCLCPP_INFO(rclcpp::get_logger("GlobalPlannerNormal"), "GlobalPlannerNormal init!");
+    RCLCPP_INFO(rclcpp::get_logger("global_planner_normal.cpp"), "GlobalPlannerNormal init!");
     global_planner_config_ = std::make_unique<ConfigReader>();
     global_planner_config_->read_global_path_config();
     global_plannaer_type_ = static_cast<int32_t>(GlobalPlannerType::KNORMAL);
@@ -12,7 +12,7 @@ namespace Planning
 
   Path GlobalPlannerNormal::search_global_path(const PNCMap &pnc_map) // 全局路径搜索
   {
-    RCLCPP_INFO(rclcpp::get_logger("global_path"), "GlobalPlannerNormal search_global_path!");
+    RCLCPP_INFO(rclcpp::get_logger("global_planner_normal.cpp"), "GlobalPlannerNormal search_global_path!");
     //普通规划算法，如果是A* 需要封装成函数来调用
 
     // 设置全局路径的基本信息
@@ -36,7 +36,7 @@ namespace Planning
       pose_tmp.pose.position.y = (pnc_map.midline.points[i].y + pnc_map.right_boundary.points[i].y) / 2.0;
       global_path_.poses.emplace_back(pose_tmp);
     }
-    RCLCPP_INFO(rclcpp::get_logger("global_path"), "global_path created points size: %ld!", global_path_.poses.size());
+    RCLCPP_INFO(rclcpp::get_logger("global_planner_normal.cpp"), "global_path created points size: %ld!", global_path_.poses.size());
     return global_path_;
   }
 }

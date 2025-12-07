@@ -4,7 +4,7 @@ namespace Planning
 {
     PncMapCreatorStraight::PncMapCreatorStraight() // 直道地图
     {
-        RCLCPP_INFO(rclcpp::get_logger("pnc_map"), "pnc_map_creator created ------ ");
+        RCLCPP_INFO(rclcpp::get_logger("pnc_map_creator_straight.cpp"), "pnc_map_creator created ------ ");
 
         // 读取配置文件，给参数赋值
         pnc_map_config_ = std::make_unique<ConfigReader>();
@@ -37,7 +37,7 @@ namespace Planning
         pnc_map_markerarray_.markers.emplace_back(pnc_map_.left_boundary);
         pnc_map_markerarray_.markers.emplace_back(pnc_map_.right_boundary);
 
-        RCLCPP_INFO(rclcpp::get_logger("pnc_map"), "pnc_map created,midline points size: %ld ------ ", pnc_map_.midline.points.size());
+        RCLCPP_INFO(rclcpp::get_logger("pnc_map_creator_straight.cpp"), "pnc_map created,midline points size: %ld ------ ", pnc_map_.midline.points.size());
         return pnc_map_;
     }
 

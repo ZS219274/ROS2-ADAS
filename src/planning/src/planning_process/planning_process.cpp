@@ -43,6 +43,10 @@ namespace Planning
     local_path_planner_ = std::make_shared<LocalPathPlanner>();
     local_speed_planner_ = std::make_unique<LocalSpeedsPlanner>();
     local_path_pub_ = this->create_publisher<Path>("local_path", 10);
+
+    // 创建局部轨迹组合器和发布器
+    local_trajectory_combiner_ = std::make_shared<LocalTrajectoryCombiner>();
+    local_trajectory_pub_ = this->create_publisher<LocalTrajectory>("local_trajectory", 10);
   }
 
   bool PlanningProcess::process() // 总流程
@@ -292,8 +296,16 @@ namespace Planning
     // 速度决策
 
     // 速度规划
+    LocalSpeeds local_speeds;
 
     // 合成轨迹
+    const auto local_trajectory = local_trajectory_combiner_->combine_trajectory(local_path, local_speeds);
+    if (local_trajectory.local_trajectory.empty())
+    {
+      RCLCPP_ERROR(this->get_logger(), "局部轨迹为空");
+      return;
+    }
+    local_trajectory_pub_->publish(local_trajectory); // 发布局部轨迹
 
     // 更新车辆信息
     RCLCPP_INFO(this->get_logger(), "----car state: loc: (%.2f, %.2f), speed: %.2f, acceleration: %.2f, theta: %.2f, kappa: %.2f,",

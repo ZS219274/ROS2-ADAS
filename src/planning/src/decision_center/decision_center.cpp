@@ -4,13 +4,13 @@ namespace Planning
 {
   DecisionCenter::DecisionCenter()
   {
-    RCLCPP_INFO(rclcpp::get_logger("decision_center"), "DecisionCenter created");
+    RCLCPP_INFO(rclcpp::get_logger("decision_center.cpp"), "DecisionCenter created");
     decision_config_ = std::make_unique<ConfigReader>();
     decision_config_->read_decision_config();
   }
   void DecisionCenter::make_path_decision(const std::shared_ptr<VehicleInfoBase> &car, const std::vector<std::shared_ptr<VehicleInfoBase>> &obses)
   {
-    RCLCPP_INFO(rclcpp::get_logger("decision_center"), "DecisionCenter make_path_decision");
+    RCLCPP_INFO(rclcpp::get_logger("decision_center.cpp"), "DecisionCenter make_path_decision");
     // 没有障碍物
     if (obses.empty())
     {
@@ -66,7 +66,7 @@ namespace Planning
             sl_point.s_ = obs->s() - decision_config_->decision().safe_dis_s_;
             sl_point.type_ = static_cast<int>(SLPointType::STOP);
             sl_points_.emplace_back(sl_point);
-            RCLCPP_INFO(rclcpp::get_logger("decision_center"), "--------- stop, slpoint(s: %.2f, l: %.2f)", sl_point.s_, sl_point.l_);
+            RCLCPP_INFO(rclcpp::get_logger("decision_center.cpp"), "--------- stop, slpoint(s: %.2f, l: %.2f)", sl_point.s_, sl_point.l_);
             break; // 更前方的障碍物这次循环不考虑了
           }
         }

@@ -5,6 +5,8 @@
 #include "base_msgs/msg/pnc_map.hpp"
 #include "base_msgs/srv/pnc_map_service.hpp"
 #include "base_msgs/srv/global_path_service.hpp"
+#include "base_msgs/msg/local_trajectory.hpp"
+
 #include "nav_msgs/msg/path.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "tf2_ros/static_transform_broadcaster.h"
@@ -28,6 +30,7 @@
 namespace Planning
 {
   using namespace std::chrono_literals;
+  using base_msgs::msg::LocalTrajectory;
   using base_msgs::msg::PNCMap;
   using base_msgs::srv::GlobalPathService;
   using base_msgs::srv::PNCMapService;
@@ -76,13 +79,16 @@ namespace Planning
     rclcpp::Client<GlobalPathService>::SharedPtr global_path_client_; // 全局路径请求客户端
 
     std::shared_ptr<ReferenceLineCreator> reference_line_creator_; // 参考线创建器
-    rclcpp::Publisher<Path>::SharedPtr reference_line_pub_;        // 参考线发布器(rviz用)
+    rclcpp::Publisher<Path>::SharedPtr reference_line_pub_;        // 参考线发布器(rviz)
 
     std::shared_ptr<DecisionCenter> decision_center_; // 决策器
 
     std::shared_ptr<LocalPathPlanner> local_path_planner_;    // 局部路径规划器
     std::shared_ptr<LocalSpeedsPlanner> local_speed_planner_; // 局部速度规划器
     rclcpp::Publisher<Path>::SharedPtr local_path_pub_;       // 局部路径发布器(rviz用)
+
+    std::shared_ptr<LocalTrajectoryCombiner> local_trajectory_combiner_; // 轨迹合成器
+    rclcpp::Publisher<LocalTrajectory>::SharedPtr local_trajectory_pub_; // 轨迹发布器
 
     rclcpp::TimerBase::SharedPtr timer_; // 定时器
   };

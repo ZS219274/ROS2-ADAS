@@ -6,7 +6,7 @@
 #include "geometry_msgs/msg/point.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "global_planner_normal.h"
-#include "global_planner_astar.h"
+#include "global_planner_astar/global_planner_astar.h"
 #include "pnc_map_creator_base.h"
 
 namespace Planning

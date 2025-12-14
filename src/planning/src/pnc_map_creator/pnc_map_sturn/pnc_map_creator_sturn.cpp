@@ -31,6 +31,9 @@ namespace Planning
     draw_straight_x(pnc_map_config_->pnc_map().road_length_ / 3.0, 1.0);
     draw_arc(M_PI_2, -1.0);
     draw_straight_y(pnc_map_config_->pnc_map().road_length_ / 3.0, -1.0);
+    draw_arc(M_PI_2, -1.0);
+    draw_arc(M_PI_2, 1.0);
+    draw_arc(M_PI_2, -1.0);
 
     // 保证pnc_map_midline.points为偶数，否则rviz无法显示
     if (pnc_map_.midline.points.size() % 2 == 1)

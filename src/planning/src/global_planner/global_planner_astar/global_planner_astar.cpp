@@ -19,274 +19,261 @@ namespace Planning
 
   Path AStar::search_global_path(const PNCMap &pnc_map) // 全局路径搜索
   {
-    RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "Point-based AStar search_global_path!");
+    RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "AStar search_global_path!");
     
-    // 基于车道合法点位的A*算法:
-    // 1. 预先提取所有合法点位（车道上的点）
-    // 2. 构建这些点之间的连接关系
-    // 3. 在这个点集合上运行A*算法
-    
-    // 提取所有合法点位
-    std::vector<std::pair<double, double>> valid_points = extract_valid_points(pnc_map);
-    
-    if (valid_points.empty()) {
-      RCLCPP_ERROR(rclcpp::get_logger("AStar"), "No valid points found on the road!");
-      return global_path_;
-    }
-    
-    // 确定起点和终点
+    // 计算起点和终点坐标（道路中线和右边界的中点）
     double start_x = (pnc_map.midline.points.front().x + pnc_map.right_boundary.points.front().x) / 2.0;
     double start_y = (pnc_map.midline.points.front().y + pnc_map.right_boundary.points.front().y) / 2.0;
     double goal_x = (pnc_map.midline.points.back().x + pnc_map.right_boundary.points.back().x) / 2.0;
     double goal_y = (pnc_map.midline.points.back().y + pnc_map.right_boundary.points.back().y) / 2.0;
+
+    // 创建栅格地图，大小根据起点和终点动态调整
+    // 计算起点和终点之间的距离
+    double dx = goal_x - start_x;
+    double dy = goal_y - start_y;
+    double start_to_goal_distance = sqrt(dx * dx + dy * dy);
     
-    // 查找最近的合法点作为实际的起点和终点
-    int start_index = find_closest_point(start_x, start_y, valid_points);
-    int goal_index = find_closest_point(goal_x, goal_y, valid_points);
-    
-    if (start_index == -1 || goal_index == -1) {
-      RCLCPP_ERROR(rclcpp::get_logger("AStar"), "Failed to find start or goal point among valid points!");
-      return global_path_;
-    }
-    
-    RCLCPP_INFO(rclcpp::get_logger("AStar"), "Found %zu valid points, start index: %d, goal index: %d", 
-                valid_points.size(), start_index, goal_index);
-    
-    // 构建邻接表表示的图
-    std::vector<std::vector<std::pair<int, double>>> graph = build_road_graph(valid_points);
-    
-    // 运行A*算法
-    std::vector<int> path_indices = astar_on_points(graph, valid_points, start_index, goal_index);
-    
-    if (path_indices.empty()) {
-      RCLCPP_ERROR(rclcpp::get_logger("AStar"), "Failed to find path using point-based A*!");
-      return global_path_;
-    }
-    
-    // 构建最终路径
-    global_path_.header.frame_id = pnc_map.header.frame_id;
-    global_path_.header.stamp = rclcpp::Clock().now();
-    
-    PoseStamped pose_tmp;
-    pose_tmp.header = global_path_.header;
-    pose_tmp.pose.orientation.x = 0.0;
-    pose_tmp.pose.orientation.y = 0.0;
-    pose_tmp.pose.orientation.z = 0.0;
-    pose_tmp.pose.orientation.w = 1.0;
-    
-    for (int idx : path_indices) {
-      pose_tmp.pose.position.x = valid_points[idx].first;
-      pose_tmp.pose.position.y = valid_points[idx].second;
-      global_path_.poses.emplace_back(pose_tmp);
-    }
-    
-    RCLCPP_INFO(rclcpp::get_logger("AStar"), "Point-based A* path found with %zu waypoints", path_indices.size());
-    return global_path_;
-  }
-  
-  std::vector<std::pair<double, double>> AStar::extract_valid_points(const PNCMap &pnc_map)
-  {
-    std::vector<std::pair<double, double>> valid_points;
-    
-    const auto& midline_points = pnc_map.midline.points;
-    const auto& right_boundary_points = pnc_map.right_boundary.points;
-    
-    // 遍历所有道路点，只提取右侧合法点位
-    for (size_t i = 0; i < midline_points.size(); ++i) {
-      // 只提取中线和右边界的中点（右侧车道中心）
-      double right_mid_x = (midline_points[i].x + right_boundary_points[i].x) / 2.0;
-      double right_mid_y = (midline_points[i].y + right_boundary_points[i].y) / 2.0;
-      valid_points.emplace_back(right_mid_x, right_mid_y);
-    }
-    
-    return valid_points;
-  }
-  
-  int AStar::find_closest_point(double x, double y, const std::vector<std::pair<double, double>>& points)
-  {
-    if (points.empty()) {
-      return -1;
-    }
-    
-    int closest_index = 0;
-    double min_distance = sqrt(pow(x - points[0].first, 2) + pow(y - points[0].second, 2));
-    
-    for (size_t i = 1; i < points.size(); ++i) {
-      double distance = sqrt(pow(x - points[i].first, 2) + pow(y - points[i].second, 2));
-      if (distance < min_distance) {
-        min_distance = distance;
-        closest_index = static_cast<int>(i);
+    // 新的栅格地图创建方式
+    // 遍历所有中线点，找出离起点最远的点
+    double max_distance_from_start = 0.0;
+    int farthest_point_index = 0;
+    for (size_t i = 0; i < pnc_map.midline.points.size(); ++i) {
+      double distance = sqrt(pow(pnc_map.midline.points[i].x - start_x, 2) + 
+                             pow(pnc_map.midline.points[i].y - start_y, 2));
+      if (distance > max_distance_from_start) {
+        max_distance_from_start = distance;
+        farthest_point_index = i;
       }
     }
     
-    return closest_index;
-  }
-  
-  std::vector<std::vector<std::pair<int, double>>> AStar::build_road_graph(
-      const std::vector<std::pair<double, double>>& points)
-  {
-    const double MAX_CONNECTION_DISTANCE = 5.0; // 最大连接距离
-    std::vector<std::vector<std::pair<int, double>>> graph(points.size());
+    // 确定用于构造矩形地图的一条边：比较起点到终点的距离和起点到最远点的距离
+    double line_end_x, line_end_y;
+    if (max_distance_from_start > start_to_goal_distance) {
+      // 最远点离起点更远，使用起点到最远点的连线作为基准线
+      line_end_x = pnc_map.midline.points[farthest_point_index].x;
+      line_end_y = pnc_map.midline.points[farthest_point_index].y;
+    } else {
+      // 终点离起点更远，使用起点到终点的连线作为基准线
+      line_end_x = goal_x;
+      line_end_y = goal_y;
+    }
     
-    // 为每个点建立与其他点的连接
-    for (size_t i = 0; i < points.size(); ++i) {
-      for (size_t j = 0; j < points.size(); ++j) {
-        if (i == j) continue;
-        
-        double distance = sqrt(pow(points[i].first - points[j].first, 2) + 
-                              pow(points[i].second - points[j].second, 2));
-        
-        // 只连接相对较近的点
-        if (distance <= MAX_CONNECTION_DISTANCE) {
-          graph[i].emplace_back(j, distance);
+    // 计算基准线的方向向量
+    double line_dx = line_end_x - start_x;
+    double line_dy = line_end_y - start_y;
+    
+    // 计算所有中线点到基准线的垂直距离，找出最大值
+    double max_perpendicular_distance = 0.0;
+    if (pnc_map.midline.points.size() > 0) {
+      // 使用点到直线距离公式计算垂直距离
+      // 直线方程: (y - start_y) * line_dx - (x - start_x) * line_dy = 0
+      // 点到直线距离公式: |Ax + By + C| / sqrt(A^2 + B^2)
+      // 其中 A = line_dy, B = -line_dx, C = start_x * line_dy - start_y * line_dx
+      double A = line_dy;
+      double B = -line_dx;
+      double C = start_x * line_dy - start_y * line_dx;
+      double denominator = sqrt(A * A + B * B);
+      
+      if (denominator > 1e-6) {  // 避免除零错误
+        for (size_t i = 0; i < pnc_map.midline.points.size(); ++i) {
+          double distance = fabs(A * pnc_map.midline.points[i].x + 
+                                B * pnc_map.midline.points[i].y + C) / denominator;
+          if (distance > max_perpendicular_distance) {
+            max_perpendicular_distance = distance;
+          }
         }
       }
     }
     
-    return graph;
-  }
-  
-  std::vector<int> AStar::astar_on_points(
-      const std::vector<std::vector<std::pair<int, double>>>& graph,
-      const std::vector<std::pair<double, double>>& points,
-      int start_index, 
-      int goal_index)
-  {
-    struct PointNode {
-      int index;
-      double g, h, f;
-      int parent;
-      
-      PointNode() : index(-1), g(0.0), h(0.0), f(0.0), parent(-1) {}  // 默认构造函数
-      
-      PointNode(int idx, double g, double h, double f, int parent)
-          : index(idx), g(g), h(h), f(f), parent(parent) {}
-    };
+    // 设置地图尺寸：长度为基准线长度，宽度为最大垂直距离的2倍
+    double map_length = sqrt(line_dx * line_dx + line_dy * line_dy);
+    const double GRID_WIDTH = map_length * 2.0 + 20.0;   // 长度方向
+    const double GRID_HEIGHT = max_perpendicular_distance * 2.0 * 2.0 + 20.0;  // 宽度方向
+    const double RESOLUTION = 0.5;     // 每个栅格代表0.5米
     
-    auto cmp = [](const PointNode& a, const PointNode& b) { return a.f > b.f; };
-    std::priority_queue<PointNode, std::vector<PointNode>, decltype(cmp)> open_list(cmp);
+    // 计算地图原点（确保起点和终点都在地图内）
+    double center_x = (start_x + line_end_x) / 2.0;
+    double center_y = (start_y + line_end_y) / 2.0;
+    double origin_x = center_x - GRID_WIDTH / 2.0;
+    double origin_y = center_y - GRID_HEIGHT / 2.0;
+    
+    // 计算起点和终点在栅格地图中的位置
+    int start_grid_x = static_cast<int>((start_x - origin_x) / RESOLUTION);
+    int start_grid_y = static_cast<int>((start_y - origin_y) / RESOLUTION);
+    int goal_grid_x = static_cast<int>((goal_x - origin_x) / RESOLUTION);
+    int goal_grid_y = static_cast<int>((goal_y - origin_y) / RESOLUTION);
+
+    // 检查起点和终点是否在地图范围内
+    int grid_width = static_cast<int>(GRID_WIDTH / RESOLUTION);
+    int grid_height = static_cast<int>(GRID_HEIGHT / RESOLUTION);
+    
+    if (start_grid_x < 0 || start_grid_x >= grid_width || start_grid_y < 0 || start_grid_y >= grid_height) {
+      RCLCPP_ERROR(rclcpp::get_logger("AStar"), "Start point is out of map bounds");
+    }
+    
+    if (goal_grid_x < 0 || goal_grid_x >= grid_width || goal_grid_y < 0 || goal_grid_y >= grid_height) {
+      RCLCPP_ERROR(rclcpp::get_logger("AStar"), "Goal point is out of map bounds");
+    }
+
+    // 初始化开放列表和关闭列表
+    auto cmp = [](const Node* a, const Node* b) { return a->f > b->f; };
+    std::priority_queue<Node*, std::vector<Node*>, decltype(cmp)> open_list(cmp);
     std::unordered_set<int> closed_list;
-    std::unordered_map<int, PointNode> open_list_map;
-    
-    // 启发式函数：欧几里得距离
-    auto heuristic = [&](int from, int to) {
-      return sqrt(pow(points[from].first - points[to].first, 2) + 
-                 pow(points[from].second - points[to].second, 2));
-    };
-    
-    // 初始化起点
-    double start_h = heuristic(start_index, goal_index);
-    PointNode start_node(start_index, 0.0, start_h, start_h, -1);
+    std::unordered_map<int, Node*> open_list_map;
+
+    // 创建起始节点
+    int start_h = static_cast<int>(sqrt(pow(goal_grid_x - start_grid_x, 2) + pow(goal_grid_y - start_grid_y, 2)) * 10);
+    Node* start_node = new Node(start_grid_x, start_grid_y, 0, start_h, start_h, nullptr);
     open_list.push(start_node);
-    open_list_map[start_index] = start_node;
-    
-    PointNode* goal_node = nullptr;
-    std::unordered_map<int, PointNode> all_nodes;
-    all_nodes[start_index] = start_node;
-    
+    open_list_map[start_grid_x * grid_width + start_grid_y] = start_node;
+
+    // 定义8个方向的移动（包括对角线）
+    int dx_move[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+    int dy_move[8] = {1, 1, 0, -1, -1, -1, 0, 1};
+    int move_cost[8] = {10, 14, 10, 14, 10, 14, 10, 14}; // 直线代价10，对角线代价14
+
+    Node* goal_node = nullptr;
+
     // A*主循环
     while (!open_list.empty()) {
-      PointNode current = open_list.top();
+      // 取出f值最小的节点
+      Node* current = open_list.top();
       open_list.pop();
-      open_list_map.erase(current.index);
-      closed_list.insert(current.index);
       
+      // 从开放列表映射中移除
+      int current_key = current->x * grid_width + current->y;
+      open_list_map.erase(current_key);
+
+      // 将当前节点加入关闭列表
+      closed_list.insert(current_key);
+
       // 检查是否到达目标点
-      if (current.index == goal_index) {
-        goal_node = new PointNode(current.index, current.g, current.h, current.f, current.parent);
-        all_nodes[current.index] = current;
+      if (current->x == goal_grid_x && current->y == goal_grid_y) {
+        goal_node = current;
         break;
       }
-      
+
       // 探索邻居节点
-      for (const auto& neighbor : graph[current.index]) {
-        int neighbor_index = neighbor.first;
-        double move_cost = neighbor.second;
-        
-        // 检查是否在关闭列表中
-        if (closed_list.find(neighbor_index) != closed_list.end()) {
+      for (int i = 0; i < 8; i++) {
+        int new_x = current->x + dx_move[i];
+        int new_y = current->y + dy_move[i];
+
+        // 检查边界
+        if (new_x < 0 || new_x >= grid_width || new_y < 0 || new_y >= grid_height) {
           continue;
         }
+
+        // 检查是否在关闭列表中
+        int new_key = new_x * grid_width + new_y;
+        if (closed_list.find(new_key) != closed_list.end()) {
+          continue;
+        }
+
+        // 检查是否是可行点（严格限制在道路中线附近的特定点上）
+        // 将栅格坐标转换为世界坐标
+        double world_x = origin_x + new_x * RESOLUTION;
+        double world_y = origin_y + new_y * RESOLUTION;
         
+        // 检查点是否是允许的可行走点
+        if (!isPointAllowed(world_x, world_y, pnc_map, RESOLUTION)) {
+          continue;
+        }
+
         // 计算新节点的g、h、f值
-        double new_g = current.g + move_cost;
-        double new_h = heuristic(neighbor_index, goal_index);
-        double new_f = new_g + new_h;
-        
+        int new_g = current->g + move_cost[i];
+        int new_h = static_cast<int>(sqrt(pow(goal_grid_x - new_x, 2) + pow(goal_grid_y - new_y, 2)) * 10);
+        int new_f = new_g + new_h;
+
         // 检查该节点是否已在开放列表中
-        auto it = open_list_map.find(neighbor_index);
+        auto it = open_list_map.find(new_key);
         if (it != open_list_map.end()) {
           // 如果已在开放列表中，检查是否找到了更好的路径
-          PointNode existing_node = it->second;
-          if (new_g < existing_node.g) {
+          Node* existing_node = it->second;
+          if (new_g < existing_node->g) {
             // 更新现有节点
-            existing_node.g = new_g;
-            existing_node.f = new_f;
-            existing_node.parent = current.index;
-            open_list_map[neighbor_index] = existing_node;
+            existing_node->g = new_g;
+            existing_node->f = new_f;
+            existing_node->parent = current;
           }
           continue;
         }
-        
+
         // 创建新节点并加入开放列表
-        PointNode new_node(neighbor_index, new_g, new_h, new_f, current.index);
+        Node* new_node = new Node(new_x, new_y, new_g, new_h, new_f, current);
         open_list.push(new_node);
-        open_list_map[neighbor_index] = new_node;
-        all_nodes[neighbor_index] = new_node;
+        open_list_map[new_key] = new_node;
       }
     }
-    
+
     // 构建路径
-    std::vector<int> path_indices;
+    global_path_.poses.clear();
     if (goal_node) {
       // 从目标节点回溯到起始节点构建路径
-      int current_index = goal_node->index;
-      while (current_index != -1) {
-        path_indices.push_back(current_index);
-        current_index = all_nodes[current_index].parent;
+      std::vector<std::pair<double, double>> waypoints;
+      Node* current = goal_node;
+      
+      while (current != nullptr) {
+        // 将栅格坐标转换为世界坐标
+        double world_x = origin_x + current->x * RESOLUTION;
+        double world_y = origin_y + current->y * RESOLUTION;
+        waypoints.emplace_back(std::pair{world_x, world_y});
+        current = current->parent;
+      }
+
+      // 反转路径（因为是从目标回溯到起点）
+      std::reverse(waypoints.begin(), waypoints.end());
+
+      // 填充Path消息
+      global_path_.header.frame_id = pnc_map.header.frame_id;
+      global_path_.header.stamp = rclcpp::Clock().now();
+      
+      PoseStamped pose_tmp;
+      pose_tmp.header = global_path_.header;
+      pose_tmp.pose.orientation.x = 0.0;
+      pose_tmp.pose.orientation.y = 0.0;
+      pose_tmp.pose.orientation.z = 0.0;
+      pose_tmp.pose.orientation.w = 1.0;
+      
+      for (const auto& point : waypoints) {
+        pose_tmp.pose.position.x = point.first;
+        pose_tmp.pose.position.y = point.second;
+        global_path_.poses.emplace_back(pose_tmp);
       }
       
-      // 反转路径（因为是从目标回溯到起点）
-      std::reverse(path_indices.begin(), path_indices.end());
+      RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "Path found with %zu waypoints", waypoints.size());
+    } else {
+      RCLCPP_WARN(rclcpp::get_logger("global_planner_astar.cpp"), "Failed to find a path using A*, fallback to normal path");
+      // return createFallbackPath(pnc_map);
     }
-    
-    delete goal_node;
-    return path_indices;
+
+    // 清理内存
+    for (auto& pair : open_list_map) {
+      delete pair.second;
+    }
+
+    RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "AStar global_path created points size: %ld!", global_path_.poses.size());
+    return global_path_;
   }
   
   bool AStar::isPointAllowed(double x, double y, const PNCMap &pnc_map, double resolution)
   {
-    // 仅允许在右侧车道上的点移动：
-    // 道路中线和右边界的中点
-    
-    (void)resolution;
+    // 仅允许在特定的道路上的点移动：
+    // 1. 道路中线和右边界的中点 
     const auto& midline_points = pnc_map.midline.points;
     const auto& right_boundary_points = pnc_map.right_boundary.points;
-    // 不再检查左边界点，注释掉相关代码
-    // const auto& left_boundary_points = pnc_map.left_boundary.points;
-    
-    // 遍历所有道路点，检查给定点是否接近右侧车道中心点
+    // 遍历所有道路点，检查给定点是否接近允许的点
     for (size_t i = 0; i < midline_points.size(); ++i) {
-      // 只检查是否接近中线和右边界的中点（右侧车道中心）
+      // 检查是否接近中线和右边界的中点
       double right_mid_x = (midline_points[i].x + right_boundary_points[i].x) / 2.0;
-      double right_mid_y = (midline_points[i].y + right_boundary_points[i].y) / 2.0;
-      
-      // 不再检查左侧点位，注释掉相关代码
-      // double left_mid_x = (midline_points[i].x + left_boundary_points[i].x) / 2.0;
-      // double left_mid_y = (midline_points[i].y + left_boundary_points[i].y) / 2.0;
-      
-      // 检查给定点是否足够接近右侧车道中心点（在道路半宽范围内）
+      double right_mid_y = (midline_points[i].y + right_boundary_points[i].y) / 2.0;     
+      // 检查给定点是否足够接近这些允许的点（在分辨率范围内）
       double dist_to_right = sqrt(pow(x - right_mid_x, 2) + pow(y - right_mid_y, 2));
-      // 不再检查到左侧点的距离，注释掉相关代码
-      // double dist_to_left = sqrt(pow(x - left_mid_x, 2) + pow(y - left_mid_y, 2));
-      
-      // 如果点足够接近右侧车道中心点，则认为是可行的
-      if (dist_to_right <= pnc_map.road_half_width / 2.0) {
+      // 如果点足够接近任何一个允许的点，则认为是可行的
+      if (dist_to_right <= resolution) {
         return true;
       }
     }
-    
-    // 如果不接近任何右侧车道中心点，则认为不可行
+    // 如果不接近任何允许的点，则认为不可行
     return false;
   }
 }

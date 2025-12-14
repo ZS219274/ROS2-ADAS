@@ -3,8 +3,6 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "global_planner_base.h"
-#include <vector>
-#include <utility>
 
 namespace Planning
 {
@@ -15,43 +13,15 @@ namespace Planning
     Path search_global_path(const PNCMap &pnc_map) override;
 
   private:
-    /**
-     * @brief 从道路信息中提取所有合法点位
-     * @param pnc_map PNC地图
-     * @return 合法点位列表
-     */
-    std::vector<std::pair<double, double>> extract_valid_points(const PNCMap &pnc_map);
-    
-    /**
-     * @brief 在点列表中查找最近的点
-     * @param x 目标点x坐标
-     * @param y 目标点y坐标
-     * @param points 点列表
-     * @return 最近点的索引，如果没找到返回-1
-     */
-    int find_closest_point(double x, double y, const std::vector<std::pair<double, double>>& points);
-    
-    /**
-     * @brief 基于点位构建道路图
-     * @param points 点位列表
-     * @return 图的邻接表表示
-     */
-    std::vector<std::vector<std::pair<int, double>>> build_road_graph(
-        const std::vector<std::pair<double, double>>& points);
-    
-    /**
-     * @brief 在点位图上执行A*算法
-     * @param graph 图的邻接表表示
-     * @param points 点位列表
-     * @param start_index 起点索引
-     * @param goal_index 终点索引
-     * @return 路径点索引列表
-     */
-    std::vector<int> astar_on_points(
-        const std::vector<std::vector<std::pair<int, double>>>& graph,
-        const std::vector<std::pair<double, double>>& points,
-        int start_index, 
-        int goal_index);
+    struct Node
+    {
+      int x, y;      // 栅格坐标
+      int g, h, f;   // 代价函数
+      Node* parent;  // 父节点
+      
+      Node(int x, int y, int g, int h, int f, Node* parent)
+          : x(x), y(y), g(g), h(h), f(f), parent(parent) {}
+    };
     
     /**
      * @brief 检查点是否是允许的可行走点

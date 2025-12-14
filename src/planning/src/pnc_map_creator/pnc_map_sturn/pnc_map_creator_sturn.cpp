@@ -28,6 +28,9 @@ namespace Planning
     draw_straight_x(pnc_map_config_->pnc_map().road_length_ / 3.0, 1.0);
     draw_arc(M_PI_2, 1.0);
     draw_arc(M_PI_2, -1.0);
+    draw_straight_x(pnc_map_config_->pnc_map().road_length_ / 3.0, 1.0);
+    draw_arc(M_PI_2, -1.0);
+    draw_straight_y(pnc_map_config_->pnc_map().road_length_ / 3.0, -1.0);
 
     // 保证pnc_map_midline.points为偶数，否则rviz无法显示
     if (pnc_map_.midline.points.size() % 2 == 1)
@@ -96,6 +99,27 @@ namespace Planning
       p_mid_.x += len_step_ * plus_flag * ratio;
     }
   }
+
+  void PncMapCreatorSturn::draw_straight_y(const double &length, const double &plus_flag, const double &ratio) // 画直道y
+  {
+    double len_tmp = 0.0;
+    while (len_tmp < length)
+    {
+      pl_.x = p_mid_.x + pnc_map_config_->pnc_map().road_half_width_;
+      pl_.y = p_mid_.y;
+
+      pr_.x = p_mid_.x - pnc_map_config_->pnc_map().road_half_width_;
+      pr_.y = p_mid_.y;
+
+      pnc_map_.midline.points.emplace_back(p_mid_);
+      pnc_map_.left_boundary.points.emplace_back(pl_);
+      pnc_map_.right_boundary.points.emplace_back(pr_);
+
+      len_tmp += len_step_ * ratio;
+      p_mid_.y += len_step_ * plus_flag * ratio;
+    }
+  }
+
   void PncMapCreatorSturn::draw_arc(const double &angle, const double &plus_flag, const double &ratio) // 画弧线， 逆时针为正方向，顺时针为负方向， angele为总角度
   {
     double theta_tmp = 0.0;

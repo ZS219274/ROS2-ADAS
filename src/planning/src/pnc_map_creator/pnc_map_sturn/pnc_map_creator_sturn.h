@@ -14,6 +14,7 @@ namespace Planning
   private:
     void init_pnc_map();                                                                            // 初始化pnc地图
     void draw_straight_x(const double &length, const double &plus_flag, const double &ratio = 1.0); // 画直道x
+    void draw_straight_y(const double &length, const double &plus_flag, const double &ratio = 1.0); // 画直道y
     void draw_arc(const double &angle, const double &plus_flag, const double &ratio = 1.0);        // 画弧线， 逆时针为正方向，顺时针为负方向， angele为总角度
   };
 } // namespace Planning

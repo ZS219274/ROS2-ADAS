@@ -21,9 +21,10 @@ namespace Planning
   {
     RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "AStar search_global_path!");
 
-    // 计算起点和终点坐标（道路中线和右边界的中点）
+    // 计算起点坐标（道路中线和右边界的中点），不合理，应该是车辆的坐标
     double start_x = (pnc_map.midline.points.front().x + pnc_map.right_boundary.points.front().x) / 2.0;
     double start_y = (pnc_map.midline.points.front().y + pnc_map.right_boundary.points.front().y) / 2.0;
+    // 目标点如果是道路终点其实是不合理的，目标点应该是一个指定的坐标（后期修改）
     double goal_x = (pnc_map.midline.points.back().x + pnc_map.right_boundary.points.back().x) / 2.0;
     double goal_y = (pnc_map.midline.points.back().y + pnc_map.right_boundary.points.back().y) / 2.0;
 
@@ -56,11 +57,13 @@ namespace Planning
           max_distance_from_start = distance;
           farthest_point_index = i;
         }
+        RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "max_distance_from_start: %f, farthest_point_index: %d", max_distance_from_start, farthest_point_index);
       }
       // 确定用于构造矩形地图的一条边：比较起点到终点的距离和起点到最远点的距离
       double line_end_x, line_end_y;
       if (max_distance_from_start > start_to_goal_distance)
       {
+        RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "max_distance_from_start > start_to_goal_distance!");
         // 最远点离起点更远，使用起点到最远点的连线作为基准线
         line_end_x = pnc_map.midline.points[farthest_point_index].x;
         line_end_y = pnc_map.midline.points[farthest_point_index].y;
@@ -301,19 +304,19 @@ namespace Planning
   bool AStar::isPointAllowed(double x, double y, const PNCMap &pnc_map, double resolution)
   {
     // 仅允许在特定的道路上的点移动：
-    // 1. 道路中线和右边界的中点
+    // 1. 道路中线和右边界的中点（靠右行驶）
     const auto &midline_points = pnc_map.midline.points;
     const auto &right_boundary_points = pnc_map.right_boundary.points;
     // 遍历所有道路点，检查给定点是否接近允许的点
     for (size_t i = 0; i < midline_points.size(); ++i)
     {
-      // 检查是否接近中线和右边界的中点
+      // 检查是否接近中线和右边界的中点（优先考虑靠右行驶）
       double right_mid_x = (midline_points[i].x + right_boundary_points[i].x) / 2.0;
       double right_mid_y = (midline_points[i].y + right_boundary_points[i].y) / 2.0;
       // 检查给定点是否足够接近这些允许的点（在分辨率范围内）
       double dist_to_right = sqrt(pow(x - right_mid_x, 2) + pow(y - right_mid_y, 2));
-      // 如果点足够接近任何一个允许的点，则认为是可行的
-      if (dist_to_right <= resolution)
+      // 如果点足够接近靠右行驶的位置或者在特殊路段（如十字路口）的左侧位置，则认为是可行的
+      if (dist_to_right < resolution)
       {
         return true;
       }

@@ -20,7 +20,8 @@ namespace Planning
   enum class PncMapType // pnc地图类型
   {
     KSTRAIGHT = 0, // 普通直线道路
-    kSTURN = 1     // S形道路
+    kSTURN = 1,    // S形道路
+    kCROSSROAD = 2 // 交叉路口道路
   };
 
   class PncMapCreatorBase // pnc地图创建器基类

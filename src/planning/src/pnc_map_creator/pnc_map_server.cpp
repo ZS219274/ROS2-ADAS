@@ -33,6 +33,9 @@ namespace Planning
             case static_cast<int>(PncMapType::kSTURN): // 转角路径
                 map_creator_ = std::make_shared<PncMapCreatorSturn>();
                 break;
+            case static_cast<int>(PncMapType::kCROSSROAD): // 十字路口路径
+                map_creator_ = std::make_shared<PncMapCreatorCrossroad>();
+                break;
             default:
                 RCLCPP_WARN(this->get_logger(), "Invalid map type!");
                 return;

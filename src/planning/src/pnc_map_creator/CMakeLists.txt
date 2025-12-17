@@ -13,6 +13,7 @@ set(DEPENDS
 add_library(pnc_map_creator SHARED
   ${CMAKE_CURRENT_SOURCE_DIR}/pnc_map_straight/pnc_map_creator_straight.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/pnc_map_sturn/pnc_map_creator_sturn.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/pnc_map_crossroad/pnc_map_creator_crossroad.cpp
 )
 
 # 添加节点

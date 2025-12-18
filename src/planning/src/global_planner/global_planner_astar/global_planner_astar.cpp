@@ -57,8 +57,8 @@ namespace Planning
           max_distance_from_start = distance;
           farthest_point_index = i;
         }
-        RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "max_distance_from_start: %f, farthest_point_index: %d", max_distance_from_start, farthest_point_index);
       }
+      RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "max_distance_from_start: %f, farthest_point_index: %d", max_distance_from_start, farthest_point_index);
       // 确定用于构造矩形地图的一条边：比较起点到终点的距离和起点到最远点的距离
       double line_end_x, line_end_y;
       if (max_distance_from_start > start_to_goal_distance)
@@ -305,18 +305,34 @@ namespace Planning
   {
     // 仅允许在特定的道路上的点移动：
     // 1. 道路中线和右边界的中点（靠右行驶）
+    // 2. 道路中线和左边界的中点（用于左转等情况）
+    // 3. 道路中线本身（用于通过路口中心区域）
     const auto &midline_points = pnc_map.midline.points;
     const auto &right_boundary_points = pnc_map.right_boundary.points;
+    const auto &left_boundary_points = pnc_map.left_boundary.points;
+    
     // 遍历所有道路点，检查给定点是否接近允许的点
     for (size_t i = 0; i < midline_points.size(); ++i)
     {
-      // 检查是否接近中线和右边界的中点（优先考虑靠右行驶）
+      // 检查是否接近中线和右边界的中点（正常靠右行驶）
       double right_mid_x = (midline_points[i].x + right_boundary_points[i].x) / 2.0;
       double right_mid_y = (midline_points[i].y + right_boundary_points[i].y) / 2.0;
+      
+      // 检查是否接近中线和左边界的中点（左转时可能需要）
+      double left_mid_x = (midline_points[i].x + left_boundary_points[i].x) / 2.0;
+      double left_mid_y = (midline_points[i].y + left_boundary_points[i].y) / 2.0;
+      
+      // 检查是否接近道路中线（通过路口中心区域时需要）
+      double center_x = midline_points[i].x;
+      double center_y = midline_points[i].y;
+      
       // 检查给定点是否足够接近这些允许的点（在分辨率范围内）
       double dist_to_right = sqrt(pow(x - right_mid_x, 2) + pow(y - right_mid_y, 2));
-      // 如果点足够接近靠右行驶的位置或者在特殊路段（如十字路口）的左侧位置，则认为是可行的
-      if (dist_to_right < resolution)
+      double dist_to_left = sqrt(pow(x - left_mid_x, 2) + pow(y - left_mid_y, 2));
+      double dist_to_center = sqrt(pow(x - center_x, 2) + pow(y - center_y, 2));
+     
+      // 如果点足够接近任何一个允许的点，则认为是可行的
+      if (dist_to_right < resolution || dist_to_left < resolution || dist_to_center < resolution)
       {
         return true;
       }

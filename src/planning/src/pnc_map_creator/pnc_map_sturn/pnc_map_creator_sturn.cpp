@@ -126,7 +126,6 @@ namespace Planning
   void PncMapCreatorSturn::draw_arc(const double &angle, const double &plus_flag, const double &ratio) // 画弧线， 逆时针为正方向，顺时针为负方向， angele为总角度
   {
     double theta_tmp = 0.0;
-
     while (theta_tmp < angle)
     {
       // 计算 左中右三点坐标

@@ -29,7 +29,13 @@ namespace Planning
     Point s_edge_point;
     Point n_edge_point;
     Point e_edge_point;
+
+    draw_straight_x(pnc_map_config_->pnc_map().road_length_ / 2.0, 1.0);
+    
     draw_crossroad_t(s_edge_point, n_edge_point, e_edge_point);
+    p_mid_ = n_edge_point;
+    draw_straight_y(pnc_map_config_->pnc_map().road_length_ / 2.0, 1.0);
+    draw_arc_y(M_PI_2, 1.0);
 
     // 保证pnc_map_midline.points为偶数，否则rviz无法显示
     if (pnc_map_.midline.points.size() % 2 == 1)
@@ -106,11 +112,20 @@ namespace Planning
     double len_tmp = 0.0;
     while (len_tmp < length)
     {
-      pl_.x = p_mid_.x + pnc_map_config_->pnc_map().road_half_width_;
-      pl_.y = p_mid_.y;
-
-      pr_.x = p_mid_.x - pnc_map_config_->pnc_map().road_half_width_;
-      pr_.y = p_mid_.y;
+      if (plus_flag == 1.0) 
+      {
+        pl_.x = p_mid_.x - pnc_map_config_->pnc_map().road_half_width_;
+        pl_.y = p_mid_.y;
+        pr_.x = p_mid_.x + pnc_map_config_->pnc_map().road_half_width_;
+        pr_.y = p_mid_.y;
+      }
+      if (plus_flag == -1.0)
+      {
+        pl_.x = p_mid_.x + pnc_map_config_->pnc_map().road_half_width_;
+        pl_.y = p_mid_.y;
+        pr_.x = p_mid_.x - pnc_map_config_->pnc_map().road_half_width_;
+        pr_.y = p_mid_.y;
+      }
 
       pnc_map_.midline.points.emplace_back(p_mid_);
       pnc_map_.left_boundary.points.emplace_back(pl_);
@@ -121,7 +136,71 @@ namespace Planning
     }
   }
 
-  void PncMapCreatorCrossroad::draw_crossroad_t(Point &s_edge_point, Point n_edge_point, Point e_edge_point) // 绘制T字型交叉路口
+  void PncMapCreatorCrossroad::draw_arc_x(const double &angle, const double &plus_flag, const double &ratio) // 画弧线， 逆时针为正方向，顺时针为负方向， angele为总角度
+  {
+    double theta_tmp = 0.0;
+    while (theta_tmp < angle)
+    {
+      // 计算 左中右三点坐标
+      pl_.x = p_mid_.x - std::sin(theta_current_) * pnc_map_config_->pnc_map().road_half_width_;
+      pl_.y = p_mid_.y + std::cos(theta_current_) * pnc_map_config_->pnc_map().road_half_width_;
+      pr_.x = p_mid_.x + std::sin(theta_current_) * pnc_map_config_->pnc_map().road_half_width_;
+      pr_.y = p_mid_.y - std::cos(theta_current_) * pnc_map_config_->pnc_map().road_half_width_;
+      // 将三点存储
+      pnc_map_.midline.points.emplace_back(p_mid_);
+      pnc_map_.left_boundary.points.emplace_back(pl_);
+      pnc_map_.right_boundary.points.emplace_back(pr_);
+
+      // 中心点前进一步
+      double step_x = len_step_ * std::cos(theta_current_);
+      double step_y = len_step_ * std::sin(theta_current_);
+
+      p_mid_.x += step_x;
+      p_mid_.y += step_y;
+
+      theta_tmp += theta_step_ * ratio;
+      theta_current_ += theta_step_ * plus_flag * ratio;
+    }
+  }
+
+   void PncMapCreatorCrossroad::draw_arc_y(const double &angle, const double &plus_flag, const double &ratio) // 沿y方向展开的画弧线
+  {
+    // 保存原始的theta_current_值
+    double original_theta_current = theta_current_;
+    
+    // 调整初始角度，使弧线沿y方向展开
+    // 如果原来是沿x方向，现在需要旋转90度或-90度来沿y方向展开
+    theta_current_ += M_PI_2 * (plus_flag > 0 ? 1 : -1);
+    
+    double theta_tmp = 0.0;
+    while (theta_tmp < angle)
+    {
+      // 计算 左中右三点坐标
+      pl_.x = p_mid_.x - std::sin(theta_current_) * pnc_map_config_->pnc_map().road_half_width_;
+      pl_.y = p_mid_.y + std::cos(theta_current_) * pnc_map_config_->pnc_map().road_half_width_;
+      pr_.x = p_mid_.x + std::sin(theta_current_) * pnc_map_config_->pnc_map().road_half_width_;
+      pr_.y = p_mid_.y - std::cos(theta_current_) * pnc_map_config_->pnc_map().road_half_width_;
+      // 将三点存储
+      pnc_map_.midline.points.emplace_back(p_mid_);
+      pnc_map_.left_boundary.points.emplace_back(pl_);
+      pnc_map_.right_boundary.points.emplace_back(pr_);
+
+      // 中心点前进一步
+      double step_x = len_step_ * std::cos(theta_current_);
+      double step_y = len_step_ * std::sin(theta_current_);
+
+      p_mid_.x += step_x;
+      p_mid_.y += step_y;
+
+      theta_tmp += theta_step_ * ratio;
+      theta_current_ += theta_step_ * plus_flag * ratio;
+    }
+    
+    // 恢复原始的theta_current_值
+    theta_current_ = original_theta_current;
+  }
+
+  void PncMapCreatorCrossroad::draw_crossroad_t(Point &s_edge_point, Point &n_edge_point, Point &e_edge_point) // 绘制T字型交叉路口
   {
 
     // 可调整的长度参数（单位与地图一致）

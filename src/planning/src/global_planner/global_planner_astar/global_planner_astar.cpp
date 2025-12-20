@@ -17,6 +17,28 @@ namespace Planning
     global_plannaer_type_ = static_cast<int32_t>(GlobalPlannerType::KASTAR);
   }
 
+  void AStar::CrreateGridMap(const PNCMap &pnc_map, double &map_width, double &map_height, double &centor_x, double &centor_y)
+  {
+    double min_x = std::numeric_limits<double>::max();
+    double max_x = std::numeric_limits<double>::lowest();
+    double min_y = std::numeric_limits<double>::max();
+    double max_y = std::numeric_limits<double>::lowest();
+
+    for (const auto &point : pnc_map.midline.points)
+    {
+      min_x = std::min(min_x, point.x);
+      max_x = std::max(max_x, point.x);
+      min_y = std::min(min_y, point.y);
+      max_y = std::max(max_y, point.y);
+    }
+
+    // 使用x最大值和最小值差的绝对值作为宽度，y最大值和最小值差的绝对值作为高度
+    map_width = std::abs(max_x - min_x);  // x方向范围
+    map_height = std::abs(max_y - min_y); // y方向范围
+    centor_x = (max_x + min_x) / 2.0;
+    centor_y = (max_y + min_y) / 2.0;
+  }
+
   Path AStar::search_global_path(const PNCMap &pnc_map) // 全局路径搜索
   {
     RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "AStar search_global_path!");
@@ -31,95 +53,55 @@ namespace Planning
     // 动态重规划机制参数
     const int MAX_RETRY_ATTEMPTS = 3; // 最大重试次数
     const double SCALE_FACTOR = 1.5;  // 每次重试时的地图放大因子
+    double map_width = 0.0;
+    double map_height = 0.0;
+    double centor_x = 0.0;
+    double centor_y = 0.0;
     Path final_path;
+
+    CrreateGridMap(pnc_map, map_width, map_height, centor_x, centor_y);
+    if (map_width == 0 || map_height == 0)
+    {
+      // 设置全局路径的基本信息
+      global_path_.header.frame_id = pnc_map.header.frame_id;
+      global_path_.header.stamp = rclcpp::Clock().now();
+      global_path_.poses.clear();
+
+      // 初始化位姿临时变量
+      PoseStamped pose_tmp;
+      pose_tmp.header = global_path_.header;
+      pose_tmp.pose.orientation.x = 0.0;
+      pose_tmp.pose.orientation.y = 0.0;
+      pose_tmp.pose.orientation.z = 0.0;
+      pose_tmp.pose.orientation.w = 1.0;
+
+      // 根据中线和右边界计算全局路径点，取中点作为路径点
+      const int midline_size = pnc_map.midline.points.size();
+      for (int i = 0; i < midline_size; i++)
+      {
+        pose_tmp.pose.position.x = (pnc_map.midline.points[i].x + pnc_map.right_boundary.points[i].x) / 2.0;
+        pose_tmp.pose.position.y = (pnc_map.midline.points[i].y + pnc_map.right_boundary.points[i].y) / 2.0;
+        global_path_.poses.emplace_back(pose_tmp);
+      }
+      return global_path_;
+    }
 
     // 尝试多次路径规划，每次扩大搜索范围
     for (int attempt = 0; attempt <= MAX_RETRY_ATTEMPTS; ++attempt)
     {
       RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "AStar path planning attempt: %d", attempt);
 
-      // 创建栅格地图，大小根据起点和终点动态调整
-      // 计算起点和终点之间的距离
-      double dx = goal_x - start_x;
-      double dy = goal_y - start_y;
-      double start_to_goal_distance = sqrt(dx * dx + dy * dy);
-
-      // 新的栅格地图创建方式
-      // 遍历所有中线点，找出离起点最远的点
-      double max_distance_from_start = 0.0;
-      int farthest_point_index = 0;
-      for (size_t i = 0; i < pnc_map.midline.points.size(); ++i)
-      {
-        double distance = sqrt(pow(pnc_map.midline.points[i].x - start_x, 2) +
-                               pow(pnc_map.midline.points[i].y - start_y, 2));
-        if (distance > max_distance_from_start)
-        {
-          max_distance_from_start = distance;
-          farthest_point_index = i;
-        }
-      }
-      RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "max_distance_from_start: %f, farthest_point_index: %d", max_distance_from_start, farthest_point_index);
-      // 确定用于构造矩形地图的一条边：比较起点到终点的距离和起点到最远点的距离
-      double line_end_x, line_end_y;
-      if (max_distance_from_start > start_to_goal_distance)
-      {
-        RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "max_distance_from_start > start_to_goal_distance!");
-        // 最远点离起点更远，使用起点到最远点的连线作为基准线
-        line_end_x = pnc_map.midline.points[farthest_point_index].x;
-        line_end_y = pnc_map.midline.points[farthest_point_index].y;
-      }
-      else
-      {
-        // 终点离起点更远，使用起点到终点的连线作为基准线
-        line_end_x = goal_x;
-        line_end_y = goal_y;
-      }
-
-      // 计算基准线的方向向量
-      double line_dx = line_end_x - start_x;
-      double line_dy = line_end_y - start_y;
-
-      // 计算所有中线点到基准线的垂直距离，找出最大值
-      double max_perpendicular_distance = 0.0;
-      if (pnc_map.midline.points.size() > 0)
-      {
-        // 使用点到直线距离公式计算垂直距离
-        // 直线方程: (y - start_y) * line_dx - (x - start_x) * line_dy = 0
-        // 点到直线距离公式: |Ax + By + C| / sqrt(A^2 + B^2)
-        // 其中 A = line_dy, B = -line_dx, C = start_x * line_dy - start_y * line_dx
-        double A = line_dy;
-        double B = -line_dx;
-        double C = start_x * line_dy - start_y * line_dx;
-        double denominator = sqrt(A * A + B * B);
-
-        if (denominator > 1e-6)
-        { // 避免除零错误
-          for (size_t i = 0; i < pnc_map.midline.points.size(); ++i)
-          {
-            double distance = fabs(A * pnc_map.midline.points[i].x +
-                                   B * pnc_map.midline.points[i].y + C) /
-                              denominator;
-            if (distance > max_perpendicular_distance)
-            {
-              max_perpendicular_distance = distance;
-            }
-          }
-        }
-      }
-
-      // 设置地图尺寸：长度为基准线长度，宽度为最大垂直距离的2倍
       // 根据重试次数调整地图尺寸
       double scale = pow(SCALE_FACTOR, attempt);
-      double map_length = sqrt(line_dx * line_dx + line_dy * line_dy);
-      const double GRID_WIDTH = map_length * 2.0 * scale + 20.0;                        // 长度方向
-      const double GRID_HEIGHT = max_perpendicular_distance * 2.0 * 2.0 * scale + 20.0; // 宽度方向
-      const double RESOLUTION = 0.5;                                                    // 每个栅格代表0.5米
+      const double RESOLUTION = 0.5; // 每个栅格代表0.5米
+
+      // 添加缓冲区确保完全覆盖
+      const double GRID_WIDTH = map_width * scale;   // x方向总宽度
+      const double GRID_HEIGHT = map_height * scale; // y方向总高度
 
       // 计算地图原点（确保起点和终点都在地图内）
-      double center_x = (start_x + line_end_x) / 2.0;
-      double center_y = (start_y + line_end_y) / 2.0;
-      double origin_x = center_x - GRID_WIDTH / 2.0;
-      double origin_y = center_y - GRID_HEIGHT / 2.0;
+      double origin_x = centor_x - GRID_WIDTH / 2.0;
+      double origin_y = centor_y - GRID_HEIGHT / 2.0;
 
       // 计算起点和终点在栅格地图中的位置
       int start_grid_x = static_cast<int>((start_x - origin_x) / RESOLUTION);
@@ -133,12 +115,12 @@ namespace Planning
 
       if (start_grid_x < 0 || start_grid_x >= grid_width || start_grid_y < 0 || start_grid_y >= grid_height)
       {
-        RCLCPP_ERROR(rclcpp::get_logger("AStar"), "Start point is out of map bounds");
+        RCLCPP_ERROR(rclcpp::get_logger("global_planner_astar.cpp"), "Start point is out of map bounds");
       }
 
       if (goal_grid_x < 0 || goal_grid_x >= grid_width || goal_grid_y < 0 || goal_grid_y >= grid_height)
       {
-        RCLCPP_ERROR(rclcpp::get_logger("AStar"), "Goal point is out of map bounds");
+        RCLCPP_ERROR(rclcpp::get_logger("global_planner_astar.cpp"), "Goal point is out of map bounds");
       }
 
       // 初始化开放列表和关闭列表
@@ -310,27 +292,27 @@ namespace Planning
     const auto &midline_points = pnc_map.midline.points;
     const auto &right_boundary_points = pnc_map.right_boundary.points;
     const auto &left_boundary_points = pnc_map.left_boundary.points;
-    
+
     // 遍历所有道路点，检查给定点是否接近允许的点
     for (size_t i = 0; i < midline_points.size(); ++i)
     {
       // 检查是否接近中线和右边界的中点（正常靠右行驶）
       double right_mid_x = (midline_points[i].x + right_boundary_points[i].x) / 2.0;
       double right_mid_y = (midline_points[i].y + right_boundary_points[i].y) / 2.0;
-      
+
       // 检查是否接近中线和左边界的中点（左转时可能需要）
       double left_mid_x = (midline_points[i].x + left_boundary_points[i].x) / 2.0;
       double left_mid_y = (midline_points[i].y + left_boundary_points[i].y) / 2.0;
-      
+
       // 检查是否接近道路中线（通过路口中心区域时需要）
       double center_x = midline_points[i].x;
       double center_y = midline_points[i].y;
-      
+
       // 检查给定点是否足够接近这些允许的点（在分辨率范围内）
       double dist_to_right = sqrt(pow(x - right_mid_x, 2) + pow(y - right_mid_y, 2));
       double dist_to_left = sqrt(pow(x - left_mid_x, 2) + pow(y - left_mid_y, 2));
       double dist_to_center = sqrt(pow(x - center_x, 2) + pow(y - center_y, 2));
-     
+
       // 如果点足够接近任何一个允许的点，则认为是可行的
       if (dist_to_right < resolution || dist_to_left < resolution || dist_to_center < resolution)
       {

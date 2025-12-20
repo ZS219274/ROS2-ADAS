@@ -38,14 +38,14 @@ vehicle:                            #　车辆
 
 pnc_map:                            #　pnc地图
   frame: "map"                      #　坐标名
-  type: 2                           #　类型,　0:straight, 1:sturn, 2:crossroad
+  type: 1                           #　类型,　0:straight, 1:sturn, 2:crossroad
   road_length: 250.0                #　道路长度
   road_half_width: 4.0              #　车道半宽
   segment_len: 0.5                  #　分段长度
   speed_limit: 1.0                  #　道路限速
 
 global_path:                        #　全局路径
-  type: 1                           #　类型,　0:normal, 1: astar
+  type: 1                          #　类型,　0:normal, 1: astar
 
 local_path:                         #　局部路径
   curve_type: 2                     #　多项式类型,　0:一次, 1:三次, 2:五次

@@ -16,7 +16,8 @@ namespace Planning
   enum class GlobalPlannerType // 全局规划类型
   {
     KNORMAL = 0, // 普通全局路径规划
-    KASTAR = 1   // A*全局路径规划
+    KASTAR = 1,   // A*全局路径规划
+    KHYBRIDASTAR = 2 // 混合A*全局路径规划
   };
 
   class GlobalPlannerBase // 全局路径规划基类

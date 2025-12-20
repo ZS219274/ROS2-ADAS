@@ -32,6 +32,16 @@ namespace Planning
      * @return 如果点是允许的可行走点则返回true，否则返回false
      */
     bool isPointAllowed(double x, double y, const PNCMap &pnc_map, double resolution);
+
+    /**
+     * @brief 创建栅格地图
+     * @param pnc_map PNC地图
+     * @param map_width 栅格地图的宽度
+     * @param map_height 栅格地图的高度
+     * @param centor_x 栅格地图的中心x坐标
+     * @param centor_y 栅格地图的中心y坐标
+     */
+    void CrreateGridMap(const PNCMap &pnc_map, double &map_width, double &map_height, double &centor_x, double &centor_y);
   };
 } // namespace Planning
 

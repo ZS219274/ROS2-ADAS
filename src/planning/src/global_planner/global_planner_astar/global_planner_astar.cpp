@@ -6,6 +6,7 @@
 #include <cmath>
 #include <algorithm>
 #include <memory>
+#include <limits>
 
 namespace Planning
 {
@@ -113,6 +114,9 @@ namespace Planning
       int grid_width = static_cast<int>(GRID_WIDTH / RESOLUTION);
       int grid_height = static_cast<int>(GRID_HEIGHT / RESOLUTION);
 
+      // 预先构建允许点的集合（性能优化：避免在A*循环中重复遍历）
+      std::unordered_set<int> allowed_points = buildAllowedPointsSet(pnc_map, origin_x, origin_y, RESOLUTION, grid_width, grid_height);
+
       if (start_grid_x < 0 || start_grid_x >= grid_width || start_grid_y < 0 || start_grid_y >= grid_height)
       {
         RCLCPP_ERROR(rclcpp::get_logger("global_planner_astar.cpp"), "Start point is out of map bounds");
@@ -123,18 +127,23 @@ namespace Planning
         RCLCPP_ERROR(rclcpp::get_logger("global_planner_astar.cpp"), "Goal point is out of map bounds");
       }
 
-      // 初始化开放列表和关闭列表
+      // 初始化开放列表和关闭列表（性能优化：使用unordered_map跟踪所有节点以便清理）
       auto cmp = [](const Node *a, const Node *b)
       { return a->f > b->f; };
       std::priority_queue<Node *, std::vector<Node *>, decltype(cmp)> open_list(cmp);
       std::unordered_set<int> closed_list;
       std::unordered_map<int, Node *> open_list_map;
+      std::unordered_map<int, Node *> all_nodes_map; // 跟踪所有节点以便清理
 
-      // 创建起始节点
-      int start_h = static_cast<int>(sqrt(pow(goal_grid_x - start_grid_x, 2) + pow(goal_grid_y - start_grid_y, 2)) * 10);
+      // 创建起始节点（优化：使用平方距离计算，避免sqrt）
+      int dx = goal_grid_x - start_grid_x;
+      int dy = goal_grid_y - start_grid_y;
+      int start_h = static_cast<int>(sqrt(static_cast<double>(dx * dx + dy * dy)) * 10);
+      int start_key = start_grid_x * grid_width + start_grid_y;
       Node *start_node = new Node(start_grid_x, start_grid_y, 0, start_h, start_h, nullptr);
       open_list.push(start_node);
-      open_list_map[start_grid_x * grid_width + start_grid_y] = start_node;
+      open_list_map[start_key] = start_node;
+      all_nodes_map[start_key] = start_node; // 跟踪所有节点
 
       // 定义8个方向的移动（包括对角线）
       int dx_move[8] = {0, 1, 1, 1, 0, -1, -1, -1};
@@ -156,6 +165,11 @@ namespace Planning
 
         // 将当前节点加入关闭列表
         closed_list.insert(current_key);
+        // 确保节点在all_nodes_map中（如果不在open_list_map中，可能已经在all_nodes_map中）
+        if (all_nodes_map.find(current_key) == all_nodes_map.end())
+        {
+          all_nodes_map[current_key] = current;
+        }
 
         // 检查是否到达目标点
         if (current->x == goal_grid_x && current->y == goal_grid_y)
@@ -181,19 +195,17 @@ namespace Planning
           {
             continue;
           }
-          // 检查是否是可行点（严格限制在道路中线附近的特定点上）
-          // 将栅格坐标转换为世界坐标
-          double world_x = origin_x + new_x * RESOLUTION;
-          double world_y = origin_y + new_y * RESOLUTION;
-
-          // 检查点是否是允许的可行走点
-          if (!isPointAllowed(world_x, world_y, pnc_map, RESOLUTION))
+          // 检查是否是可行点（使用预先构建的集合，O(1)查找）
+          if (allowed_points.find(new_key) == allowed_points.end())
           {
             continue;
           }
-          // 计算新节点的g、h、f值
+
+          // 计算新节点的g、h、f值（优化：使用平方距离计算，避免pow和重复sqrt）
           int new_g = current->g + move_cost[i];
-          int new_h = static_cast<int>(sqrt(pow(goal_grid_x - new_x, 2) + pow(goal_grid_y - new_y, 2)) * 10);
+          dx = goal_grid_x - new_x;
+          dy = goal_grid_y - new_y;
+          int new_h = static_cast<int>(sqrt(static_cast<double>(dx * dx + dy * dy)) * 10);
           int new_f = new_g + new_h;
 
           // 检查该节点是否已在开放列表中
@@ -216,6 +228,7 @@ namespace Planning
           Node *new_node = new Node(new_x, new_y, new_g, new_h, new_f, current);
           open_list.push(new_node);
           open_list_map[new_key] = new_node;
+          all_nodes_map[new_key] = new_node; // 跟踪所有节点
         }
       }
 
@@ -257,17 +270,36 @@ namespace Planning
           global_path_.poses.emplace_back(pose_tmp);
         }
         RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "Path found with %zu waypoints", waypoints.size());
+
+        // 清理内存：标记路径上的节点，删除其他节点（性能优化：防止内存泄漏）
+        std::unordered_set<Node *> path_nodes;
+        Node *path_node = goal_node;
+        while (path_node != nullptr)
+        {
+          path_nodes.insert(path_node);
+          path_node = path_node->parent;
+        }
+        // 删除所有不在路径上的节点
+        for (auto &pair : all_nodes_map)
+        {
+          if (path_nodes.find(pair.second) == path_nodes.end())
+          {
+            delete pair.second;
+          }
+        }
+
         // 成功找到路径，退出循环
         break;
       }
       else
       {
         RCLCPP_WARN(rclcpp::get_logger("global_planner_astar.cpp"), "Failed to find a path using A* on attempt %d", attempt);
-        // 清理内存
-        for (auto &pair : open_list_map)
+        // 清理内存（性能优化：防止内存泄漏）
+        for (auto &pair : all_nodes_map)
         {
           delete pair.second;
         }
+        all_nodes_map.clear(); // 清空映射
 
         // 如果这是最后一次尝试，记录日志
         if (attempt == MAX_RETRY_ATTEMPTS)
@@ -283,43 +315,75 @@ namespace Planning
     return global_path_;
   }
 
-  bool AStar::isPointAllowed(double x, double y, const PNCMap &pnc_map, double resolution)
+  std::unordered_set<int> AStar::buildAllowedPointsSet(const PNCMap &pnc_map,
+                                                       double origin_x, double origin_y,
+                                                       double resolution,
+                                                       int grid_width, int grid_height)
   {
-    // 仅允许在特定的道路上的点移动：
-    // 1. 道路中线和右边界的中点（靠右行驶）
-    // 2. 道路中线和左边界的中点（用于左转等情况）
-    // 3. 道路中线本身（用于通过路口中心区域）
+    std::unordered_set<int> allowed_points;
     const auto &midline_points = pnc_map.midline.points;
     const auto &right_boundary_points = pnc_map.right_boundary.points;
     const auto &left_boundary_points = pnc_map.left_boundary.points;
 
-    // 遍历所有道路点，检查给定点是否接近允许的点
+    // 预先计算分辨率平方，用于距离比较（避免sqrt）
+    const double resolution_sq = resolution * resolution;
+
+    // 遍历所有道路点，计算允许的栅格坐标
     for (size_t i = 0; i < midline_points.size(); ++i)
     {
-      // 检查是否接近中线和右边界的中点（正常靠右行驶）
+      // 计算三种允许的点：中右中点、中左中点、中线点
       double right_mid_x = (midline_points[i].x + right_boundary_points[i].x) / 2.0;
       double right_mid_y = (midline_points[i].y + right_boundary_points[i].y) / 2.0;
 
-      // 检查是否接近中线和左边界的中点（左转时可能需要）
       double left_mid_x = (midline_points[i].x + left_boundary_points[i].x) / 2.0;
       double left_mid_y = (midline_points[i].y + left_boundary_points[i].y) / 2.0;
 
-      // 检查是否接近道路中线（通过路口中心区域时需要）
       double center_x = midline_points[i].x;
       double center_y = midline_points[i].y;
 
-      // 检查给定点是否足够接近这些允许的点（在分辨率范围内）
-      double dist_to_right = sqrt(pow(x - right_mid_x, 2) + pow(y - right_mid_y, 2));
-      double dist_to_left = sqrt(pow(x - left_mid_x, 2) + pow(y - left_mid_y, 2));
-      double dist_to_center = sqrt(pow(x - center_x, 2) + pow(y - center_y, 2));
+      // 将世界坐标转换为栅格坐标，并添加到允许集合中
+      // 考虑分辨率范围内的所有可能栅格
+      int grid_x_right = static_cast<int>((right_mid_x - origin_x) / resolution);
+      int grid_y_right = static_cast<int>((right_mid_y - origin_y) / resolution);
+      int grid_x_left = static_cast<int>((left_mid_x - origin_x) / resolution);
+      int grid_y_left = static_cast<int>((left_mid_y - origin_y) / resolution);
+      int grid_x_center = static_cast<int>((center_x - origin_x) / resolution);
+      int grid_y_center = static_cast<int>((center_y - origin_y) / resolution);
 
-      // 如果点足够接近任何一个允许的点，则认为是可行的
-      if (dist_to_right < resolution || dist_to_left < resolution || dist_to_center < resolution)
+      // 检查边界并添加到集合（使用平方距离检查，避免sqrt）
+      auto addIfValid = [&](int gx, int gy, double wx, double wy)
       {
-        return true;
+        if (gx >= 0 && gx < grid_width && gy >= 0 && gy < grid_height)
+        {
+          // 检查栅格中心是否在允许范围内
+          double grid_center_x = origin_x + (gx + 0.5) * resolution;
+          double grid_center_y = origin_y + (gy + 0.5) * resolution;
+          double dx = grid_center_x - wx;
+          double dy = grid_center_y - wy;
+          if (dx * dx + dy * dy <= resolution_sq)
+          {
+            allowed_points.insert(gx * grid_width + gy);
+          }
+        }
+      };
+
+      addIfValid(grid_x_right, grid_y_right, right_mid_x, right_mid_y);
+      addIfValid(grid_x_left, grid_y_left, left_mid_x, left_mid_y);
+      addIfValid(grid_x_center, grid_y_center, center_x, center_y);
+
+      // 也检查相邻栅格（在分辨率范围内）
+      for (int dx = -1; dx <= 1; ++dx)
+      {
+        for (int dy = -1; dy <= 1; ++dy)
+        {
+          if (dx == 0 && dy == 0)
+            continue;
+          addIfValid(grid_x_right + dx, grid_y_right + dy, right_mid_x, right_mid_y);
+          addIfValid(grid_x_left + dx, grid_y_left + dy, left_mid_x, left_mid_y);
+          addIfValid(grid_x_center + dx, grid_y_center + dy, center_x, center_y);
+        }
       }
     }
-    // 如果不接近任何允许的点，则认为不可行
-    return false;
+    return allowed_points;
   }
 }

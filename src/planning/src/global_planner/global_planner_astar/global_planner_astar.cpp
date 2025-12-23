@@ -308,9 +308,7 @@ namespace Planning
         }
       }
     }
-    // 清理内存（如果还有残留）
-    // 注意：这里的清理已经在循环内部处理过了，除非goal_node非空
-    // 由于变量作用域的原因，这里不需要额外清理
+
     RCLCPP_INFO(rclcpp::get_logger("global_planner_astar.cpp"), "AStar global_path created points size: %ld!", global_path_.poses.size());
     return global_path_;
   }

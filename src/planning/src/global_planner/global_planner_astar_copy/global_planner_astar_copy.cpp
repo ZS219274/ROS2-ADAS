@@ -1,4 +1,4 @@
-#include "global_planner_astar.h"
+#include "global_planner_astar_copy.h"
 #include <vector>
 #include <queue>
 #include <unordered_set>

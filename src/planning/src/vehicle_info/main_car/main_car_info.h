@@ -4,15 +4,14 @@
 #include "rclcpp/rclcpp.hpp"
 #include "vehicle_info_base.h"
 
-namespace Planning
+namespace Planning {
+class MainCar : public VehicleInfoBase  // 主车信息
 {
-  class MainCar : public VehicleInfoBase // 主车信息
-  {
-  public:
-    MainCar();
+ public:
+  MainCar();
 
-    void vehicle_cartesian_to_frenet(const Referline &refer_line) override;
-  };
+  void vehicle_cartesian_to_frenet(const Referline& refer_line) override;
+};
 
-} // namespace Planning
-#endif // MAIN_CAR_INFO_H_
+}  // namespace Planning
+#endif  // MAIN_CAR_INFO_H_

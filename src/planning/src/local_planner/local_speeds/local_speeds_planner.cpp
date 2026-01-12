@@ -1,9 +1,9 @@
 #include "local_speeds_planner.h"
 
-namespace Planning
+namespace Planning {
+LocalSpeedsPlanner::LocalSpeedsPlanner()  // 局部速度规划器
 {
-  LocalSpeedsPlanner::LocalSpeedsPlanner() // 局部速度规划器
-  {
-    RCLCPP_INFO(rclcpp::get_logger("local_speeds_planner.cpp"), "LocalSpeedsPlanner created");
-  }
-} // namespace Planning
+  RCLCPP_INFO(rclcpp::get_logger("local_speeds_planner.cpp"),
+              "LocalSpeedsPlanner created");
+}
+}  // namespace Planning

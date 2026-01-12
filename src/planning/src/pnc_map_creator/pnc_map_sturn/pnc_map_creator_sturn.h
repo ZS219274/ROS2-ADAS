@@ -1,21 +1,25 @@
 #ifndef PNC_MAP_CREATOR_STURN_H_
 #define PNC_MAP_CREATOR_STURN_H_
-#include "rclcpp/rclcpp.hpp"
 #include "pnc_map_creator_base.h"
+#include "rclcpp/rclcpp.hpp"
 
-namespace Planning
+namespace Planning {
+class PncMapCreatorSturn : public PncMapCreatorBase  // S弯道地图
 {
-  class PncMapCreatorSturn : public PncMapCreatorBase // S弯道地图
-  {
-  public:
-    PncMapCreatorSturn();
-    PNCMap create_pnc_map() override;
+ public:
+  PncMapCreatorSturn();
+  PNCMap create_pnc_map() override;
 
-  private:
-    void init_pnc_map();                                                                            // 初始化pnc地图
-    void draw_straight_x(const double &length, const double &plus_flag, const double &ratio = 1.0); // 画直道x
-    void draw_straight_y(const double &length, const double &plus_flag, const double &ratio = 1.0); // 画直道y
-    void draw_arc(const double &angle, const double &plus_flag, const double &ratio = 1.0);        // 画弧线， 逆时针为正方向，顺时针为负方向， angele为总角度
-  };
-} // namespace Planning
-#endif // PNC_MAP_CREATOR_STRURN_H_
+ private:
+  void init_pnc_map();  // 初始化pnc地图
+  void draw_straight_x(const double& length, const double& plus_flag,
+                       const double& ratio = 1.0);  // 画直道x
+  void draw_straight_y(const double& length, const double& plus_flag,
+                       const double& ratio = 1.0);  // 画直道y
+  void draw_arc(
+      const double& angle, const double& plus_flag,
+      const double& ratio =
+          1.0);  // 画弧线， 逆时针为正方向，顺时针为负方向， angele为总角度
+};
+}  // namespace Planning
+#endif  // PNC_MAP_CREATOR_STRURN_H_

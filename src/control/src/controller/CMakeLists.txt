@@ -23,9 +23,11 @@ ament_target_dependencies(control_node
 # 查找 planning 模块的库路径
 find_library(VEHICLE_INFO_LIB
   NAMES vehicle_info
-  PATHS ${CMAKE_INSTALL_PREFIX}/planning/lib
-        ${CMAKE_INSTALL_PREFIX}/../install/planning/lib
-        /home/ubuntu/wxx/project/ROS2-ADAS/install/planning/lib
+  HINTS 
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../install/planning/lib
+    ${CMAKE_INSTALL_PREFIX}/planning/lib
+    $ENV{AMENT_PREFIX_PATH}/planning/lib
+    $ENV{COLCON_PREFIX_PATH}/planning/lib
   NO_DEFAULT_PATH
 )
 
@@ -42,4 +44,3 @@ target_link_libraries(control_node
 install(TARGETS 
   control_node
   DESTINATION lib/${CONTROL_PACKAGE_NAME})
-

@@ -39,7 +39,7 @@ sudo apt install -y \
 在工程根目录下执行编译命令：
 
 ```bash
-cd /path/to/ROS2-ADAS
+cd /path/to/ASD-PnC
 colcon build
 ```
 

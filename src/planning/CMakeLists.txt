@@ -100,6 +100,9 @@ install(DIRECTORY
   config launch urdf rviz
   DESTINATION share/${PROJECT_NAME})
 
+# 导出 vehicle_info 库，供其他包使用
+ament_export_libraries(vehicle_info)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights

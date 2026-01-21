@@ -34,6 +34,11 @@ sudo apt install -y \
     python3-colcon-common-extensions
 ```
 
+## 工程获取
+```bash
+ git clone https://github.com/ZS219274/ROS2-ADAS.git  -b PnC
+```
+
 ## 编译
 
 在工程根目录下执行编译命令：

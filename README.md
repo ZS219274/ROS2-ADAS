@@ -148,8 +148,4 @@ TODO: License declaration
 
 ## 维护者
 
-- ubuntu (89206437@qq.com)
-
-## 版本
-
-0.0.0
+- Wu_xiaoxiao (89206437@qq.com)

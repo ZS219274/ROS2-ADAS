@@ -1,0 +1,47 @@
+# 控制模块配置文件
+
+vehicle:
+  main_car:
+    id: 0
+    frame: "base_footprint"
+    length: 4.5
+    width: 1.8
+    pose_x: 0.0
+    pose_y: 0.0
+    pose_theta: 0.0
+    speed_ori: 0.0
+
+pnc_map:
+  frame: "map"
+
+# 控制参数
+control:
+  # 控制类型：0-PID控制器, 1-MPC控制器, 2-LQR控制器
+  type: 1
+  
+  # 控制周期（秒）
+  dt: 0.1
+  
+  # 横向控制（航向角控制）PID参数
+  lateral_control:
+    kp: 1.5      # 比例系数
+    ki: 0.1      # 积分系数
+    kd: 0.3      # 微分系数
+    max_output: 0.5   # 最大航向角变化率（rad/s）
+    min_output: -0.5  # 最小航向角变化率（rad/s）
+  
+  # 纵向控制（速度控制）PID参数
+  longitudinal_control:
+    kp: 2.0      # 比例系数
+    ki: 0.2      # 积分系数
+    kd: 0.1      # 微分系数
+    max_output: 2.0   # 最大加速度（m/s²）
+    min_output: -2.0  # 最大减速度（m/s²）
+  
+  # 前视距离（用于选择目标点）
+  lookahead_distance: 5.0
+  
+  # 车辆参数
+  vehicle:
+    wheelbase: 2.7  # 轴距（米）
+

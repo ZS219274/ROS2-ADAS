@@ -1,8 +1,7 @@
 #include "reference_line_smoother.h"
 
-#include "Eigen/src/Core/Matrix.h"
-#include "Eigen/src/Core/util/Constants.h"
-#include "Eigen/src/SparseCore/SparseMatrix.h"
+#include <Eigen/Dense>
+#include <Eigen/SparseCore>
 
 namespace Planning {
 ReferenceLineSmoother::ReferenceLineSmoother()  // 参考线平滑

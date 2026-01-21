@@ -22,9 +22,33 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # 设置包名, 让子目录节点安装时使用
 set(PLANNING_PACKAGE_NAME ${PROJECT_NAME})
 
-# 包含头文件目录
+# 加载第三方库配置
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindThirdParty.cmake)
+
+# 确保优先使用项目中的第三方库，而不是系统路径
+# 使用 -I 选项明确指定包含路径优先级（在系统路径之前）
+# OSQP 必须在 OsqpEigen 之前
+# 注意：OsqpEigen 应该包含其父目录 third_party/include
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-I${EIGEN3_INCLUDE_DIR})
+  add_compile_options(-I${OSQP_INCLUDE_DIR})      # OSQP 先于 OsqpEigen
+  get_filename_component(THIRD_PARTY_INCLUDE_DIR ${OSQPEIGEN_INCLUDE_DIR} DIRECTORY)
+  add_compile_options(-I${THIRD_PARTY_INCLUDE_DIR})  # OsqpEigen 的父目录
+endif()
+
+# 定义宏以确保 OsqpEigen 使用正确的 OSQP 版本
+add_definitions(-DOSQP_EIGEN_OSQP_IS_V1)
+
+# 包含头文件目录（BEFORE 确保第三方库路径优先于系统路径）
+# OSQP 必须在 OsqpEigen 之前，以确保类型定义正确
+# 注意：OsqpEigen 应该包含其父目录 third_party/include
+get_filename_component(THIRD_PARTY_INCLUDE_DIR ${OSQPEIGEN_INCLUDE_DIR} DIRECTORY)
+include_directories(BEFORE
+  ${EIGEN3_INCLUDE_DIR}
+  ${OSQP_INCLUDE_DIR}      # OSQP 先
+  ${THIRD_PARTY_INCLUDE_DIR}  # OsqpEigen 的父目录
+)
 include_directories(
-  /usr/local/include/eigen-3.4.0
   src/common/config_reader
   src/common/math
   src/decision_center
@@ -55,8 +79,9 @@ find_package(visualization_msgs REQUIRED)
 find_package(base_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(ament_index_cpp REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(OsqpEigen REQUIRED)
+# Eigen3 和 OsqpEigen 已通过 FindThirdParty.cmake 配置，不再使用系统安装的版本
+# find_package(Eigen3 REQUIRED)
+# find_package(OsqpEigen REQUIRED)
 
 # 添加子目录
 add_subdirectory(src/common)

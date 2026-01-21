@@ -1,0 +1,36 @@
+#!/bin/bash
+# buildtests : build tests matching a regexp
+
+if [[ $# != 1 || $1 == *help ]]
+then
+  echo "usage: $0 regexp"
+  echo "  Builds tests matching the regexp."
+  echo "  The EIGEN_MAKE_ARGS environment variable allows to pass args to 'make'."
+  echo "    For example, to launch 5 concurrent builds, use EIGEN_MAKE_ARGS='-j5'"
+  exit 0
+fi
+
+# Get the list of tests matching the regexp
+MATCHING_TESTS=""
+EIGEN_TESTS_LIST="@EIGEN_TESTS_LIST@"
+
+# Filter tests matching the regexp
+for test in ${EIGEN_TESTS_LIST}; do
+  if [[ "${test}" =~ $1 ]]; then
+    MATCHING_TESTS="${MATCHING_TESTS} ${test}"
+  fi
+done
+
+if [ -z "${MATCHING_TESTS}" ]; then
+  echo "No tests matching '$1'"
+  exit 1
+fi
+
+# Build the matching tests
+if [ -n "${EIGEN_MAKE_ARGS:+x}" ]; then
+  make ${EIGEN_MAKE_ARGS} ${MATCHING_TESTS}
+else
+  make ${MATCHING_TESTS}
+fi
+
+exit $?

@@ -31,7 +31,14 @@ sudo apt install -y \
     cmake \
     git \
     libyaml-cpp-dev \
-    python3-colcon-common-extensions
+    python3-pip \
+    python3-colcon-common-extensions \
+    ros-humble-tf2-tools \
+    ros-humble-tf-transformations \
+    ros-humble-joint-state-publisher \
+    ros-humble-joint-state-publisher-gui \
+    ros-humble-xacro
+pip3 install transforms3d
 ```
 
 ## 工程获取

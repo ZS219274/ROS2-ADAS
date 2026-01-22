@@ -43,7 +43,7 @@ pip3 install transforms3d
 
 ## 工程获取
 ```bash
- git clone https://github.com/ZS219274/ROS2-ADAS.git  -b PnC
+ git clone https://github.com/ZS219274/ROS2-ADAS.git -b PnC
 ```
 
 ## 编译

@@ -1,6 +1,6 @@
 # ADAS-PnC
 
-基于ROS2的自动驾驶辅助系统（Advanced Driver Assistance System）
+基于ROS2的自动驾驶（Advanced Driver Assistance System）
 
 ## 系统要求
 

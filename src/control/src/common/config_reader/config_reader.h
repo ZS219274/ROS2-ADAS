@@ -41,6 +41,23 @@ struct LongitudinalControlStruct  // 纵向控制参数
   double min_output_ = -1.0;
 };
 
+struct MPCConfigStruct  // MPC控制器参数
+{
+  int prediction_horizon = 10;     // 预测时域
+  int control_horizon = 5;         // 控制时域
+  double q_x = 1.0;               // x位置误差权重
+  double q_y = 1.0;               // y位置误差权重
+  double q_theta = 2.0;           // 航向角误差权重
+  double q_v = 1.0;               // 速度误差权重
+  double r_delta = 1.0;           // 转向角控制量权重
+  double r_a = 1.0;               // 加速度控制量权重
+  double rd_delta = 10.0;         // 转向角变化率权重
+  double rd_a = 10.0;             // 加速度变化率权重
+  int solver_max_iter = 100;       // QP求解器最大迭代
+  double solver_tolerance = 1.0e-4;// QP求解器收敛容差
+  double max_steering = 0.5;      // 最大转向角 (rad)
+};
+
 struct LQRConfigStruct  // LQR控制器参数
 {
   double q_lateral_error = 1.0;      // 横向位置误差权重
@@ -62,6 +79,7 @@ struct ControlConfigStruct  // 控制配置
   LateralControlStruct lateral_;      // 横向控制参数
   LongitudinalControlStruct longitudinal_;  // 纵向控制参数
   LQRConfigStruct lqr_;              // LQR控制器参数
+  MPCConfigStruct mpc_;              // MPC控制器参数
 };
 
 class ConfigReader  // 配置文件读取器

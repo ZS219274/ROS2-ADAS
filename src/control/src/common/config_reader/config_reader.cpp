@@ -90,6 +90,42 @@ void ConfigReader::read_control_config() {
         control_config["control"]["longitudinal_control"]["min_output"]
             .as<double>();
 
+    // MPC参数（带默认值的安全读取）
+    if (control_config["control"]["mpc"]) {
+      auto mpc = control_config["control"]["mpc"];
+      if (mpc["prediction_horizon"])
+        control_config_.mpc_.prediction_horizon =
+            mpc["prediction_horizon"].as<int>();
+      if (mpc["control_horizon"])
+        control_config_.mpc_.control_horizon =
+            mpc["control_horizon"].as<int>();
+      if (mpc["q_x"])
+        control_config_.mpc_.q_x = mpc["q_x"].as<double>();
+      if (mpc["q_y"])
+        control_config_.mpc_.q_y = mpc["q_y"].as<double>();
+      if (mpc["q_theta"])
+        control_config_.mpc_.q_theta = mpc["q_theta"].as<double>();
+      if (mpc["q_v"])
+        control_config_.mpc_.q_v = mpc["q_v"].as<double>();
+      if (mpc["r_delta"])
+        control_config_.mpc_.r_delta = mpc["r_delta"].as<double>();
+      if (mpc["r_a"])
+        control_config_.mpc_.r_a = mpc["r_a"].as<double>();
+      if (mpc["rd_delta"])
+        control_config_.mpc_.rd_delta = mpc["rd_delta"].as<double>();
+      if (mpc["rd_a"])
+        control_config_.mpc_.rd_a = mpc["rd_a"].as<double>();
+      if (mpc["solver_max_iter"])
+        control_config_.mpc_.solver_max_iter =
+            mpc["solver_max_iter"].as<int>();
+      if (mpc["solver_tolerance"])
+        control_config_.mpc_.solver_tolerance =
+            mpc["solver_tolerance"].as<double>();
+      if (mpc["max_steering"])
+        control_config_.mpc_.max_steering =
+            mpc["max_steering"].as<double>();
+    }
+
     // LQR参数（带默认值的安全读取）
     if (control_config["control"]["lqr"]) {
       auto lqr = control_config["control"]["lqr"];

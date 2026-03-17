@@ -76,6 +76,7 @@ struct ControlConfigStruct  // 控制配置
   double dt_ = 0.1;                    // 控制周期
   double lookahead_distance_ = 5.0;   // 前视距离
   double wheelbase_ = 2.7;            // 轴距
+  double default_speed_ = 10.0;      // 轨迹无速度规划时的默认目标速度(m/s)
   LateralControlStruct lateral_;      // 横向控制参数
   LongitudinalControlStruct longitudinal_;  // 纵向控制参数
   LQRConfigStruct lqr_;              // LQR控制器参数

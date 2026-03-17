@@ -35,9 +35,12 @@ control:
     kp: 2.0      # 比例系数
     ki: 0.2      # 积分系数
     kd: 0.1      # 微分系数
-    max_output: 2.0   # 最大加速度（m/s²）
-    min_output: -2.0  # 最大减速度（m/s²）
+    max_output: 3.0   # 最大加速度（m/s²）
+    min_output: -3.0  # 最大减速度（m/s²）
   
+  # 轨迹无速度规划时的默认目标速度（m/s）
+  default_speed: 10.0
+
   # 前视距离（用于选择目标点）
   lookahead_distance: 5.0
   
@@ -52,11 +55,11 @@ control:
     q_x: 1.0                    # x位置误差权重
     q_y: 1.0                    # y位置误差权重
     q_theta: 2.0                # 航向角误差权重
-    q_v: 1.0                    # 速度误差权重
+    q_v: 2.0                    # 速度误差权重
     r_delta: 1.0                # 转向角控制量权重
-    r_a: 1.0                    # 加速度控制量权重
+    r_a: 0.5                    # 加速度控制量权重
     rd_delta: 10.0              # 转向角变化率权重（平滑性）
-    rd_a: 10.0                  # 加速度变化率权重（平滑性）
+    rd_a: 5.0                   # 加速度变化率权重（平滑性）
     solver_max_iter: 100         # QP求解器最大迭代次数
     solver_tolerance: 1.0e-4     # QP求解器收敛容差
     max_steering: 0.5            # 最大转向角 (rad, ≈28.6°)
@@ -68,9 +71,9 @@ control:
       q_heading_error: 3.0       # Q矩阵：航向角误差权重
       r_steering: 10.0           # R矩阵：转向控制量权重
     longitudinal:
-      q_station_error: 0.5       # Q矩阵：纵向位置误差权重
-      q_velocity_error: 2.0      # Q矩阵：速度误差权重
-      r_acceleration: 5.0        # R矩阵：加速度控制量权重
+      q_station_error: 1.0       # Q矩阵：纵向位置误差权重
+      q_velocity_error: 3.0      # Q矩阵：速度误差权重
+      r_acceleration: 1.0        # R矩阵：加速度控制量权重
     max_iteration: 150           # DARE求解最大迭代次数
     tolerance: 1.0e-6            # DARE收敛容差
 

@@ -265,6 +265,7 @@ void MPCController::compute_control_inputs(
     th_r[i] = pt.theta;
     kap_r[i] = pt.kappa;
     v_r[i] = sp.speed;
+    if (v_r[i] < 1e-3) v_r[i] = config_.default_speed_;
     a_r[i] = sp.acceleration;
   }
 

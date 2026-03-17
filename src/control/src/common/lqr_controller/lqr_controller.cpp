@@ -272,7 +272,9 @@ double LQRController::extract_ref_speed(
     const LocalTrajectory::SharedPtr trajectory, int idx) const {
   int size = static_cast<int>(trajectory->local_trajectory.size());
   idx = std::clamp(idx, 0, size - 1);
-  return trajectory->local_trajectory[idx].speed_point.speed;
+  double spd = trajectory->local_trajectory[idx].speed_point.speed;
+  if (spd < 1e-3) spd = config_.default_speed_;
+  return spd;
 }
 
 double LQRController::extract_ref_curvature(

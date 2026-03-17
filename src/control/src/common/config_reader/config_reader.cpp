@@ -63,6 +63,9 @@ void ConfigReader::read_control_config() {
         control_config["control"]["lookahead_distance"].as<double>();
     control_config_.wheelbase_ =
         control_config["control"]["vehicle"]["wheelbase"].as<double>();
+    if (control_config["control"]["default_speed"])
+      control_config_.default_speed_ =
+          control_config["control"]["default_speed"].as<double>();
 
     // 横向控制参数
     control_config_.lateral_.kp_ =

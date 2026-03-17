@@ -89,6 +89,38 @@ void ConfigReader::read_control_config() {
     control_config_.longitudinal_.min_output_ =
         control_config["control"]["longitudinal_control"]["min_output"]
             .as<double>();
+
+    // LQR参数（带默认值的安全读取）
+    if (control_config["control"]["lqr"]) {
+      auto lqr = control_config["control"]["lqr"];
+      if (lqr["lateral"]) {
+        auto lat = lqr["lateral"];
+        if (lat["q_lateral_error"])
+          control_config_.lqr_.q_lateral_error =
+              lat["q_lateral_error"].as<double>();
+        if (lat["q_heading_error"])
+          control_config_.lqr_.q_heading_error =
+              lat["q_heading_error"].as<double>();
+        if (lat["r_steering"])
+          control_config_.lqr_.r_steering = lat["r_steering"].as<double>();
+      }
+      if (lqr["longitudinal"]) {
+        auto lon = lqr["longitudinal"];
+        if (lon["q_station_error"])
+          control_config_.lqr_.q_station_error =
+              lon["q_station_error"].as<double>();
+        if (lon["q_velocity_error"])
+          control_config_.lqr_.q_velocity_error =
+              lon["q_velocity_error"].as<double>();
+        if (lon["r_acceleration"])
+          control_config_.lqr_.r_acceleration =
+              lon["r_acceleration"].as<double>();
+      }
+      if (lqr["max_iteration"])
+        control_config_.lqr_.max_iteration = lqr["max_iteration"].as<int>();
+      if (lqr["tolerance"])
+        control_config_.lqr_.tolerance = lqr["tolerance"].as<double>();
+    }
   } catch (const YAML::Exception& e) {
     RCLCPP_ERROR(rclcpp::get_logger("control_config"),
                  "Failed to load control config: %s", e.what());

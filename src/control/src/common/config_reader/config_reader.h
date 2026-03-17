@@ -41,14 +41,27 @@ struct LongitudinalControlStruct  // 纵向控制参数
   double min_output_ = -1.0;
 };
 
+struct LQRConfigStruct  // LQR控制器参数
+{
+  double q_lateral_error = 1.0;      // 横向位置误差权重
+  double q_heading_error = 3.0;      // 航向角误差权重
+  double r_steering = 10.0;          // 转向控制量权重
+  double q_station_error = 0.5;      // 纵向位置误差权重
+  double q_velocity_error = 2.0;     // 速度误差权重
+  double r_acceleration = 5.0;       // 加速度控制量权重
+  int max_iteration = 150;           // DARE最大迭代次数
+  double tolerance = 1.0e-6;         // DARE收敛容差
+};
+
 struct ControlConfigStruct  // 控制配置
 {
-  int type_ = 0;                       // 控制类型：0-PID, 1-MPC
+  int type_ = 0;                       // 控制类型：0-PID, 1-MPC, 2-LQR
   double dt_ = 0.1;                    // 控制周期
   double lookahead_distance_ = 5.0;   // 前视距离
   double wheelbase_ = 2.7;            // 轴距
   LateralControlStruct lateral_;      // 横向控制参数
   LongitudinalControlStruct longitudinal_;  // 纵向控制参数
+  LQRConfigStruct lqr_;              // LQR控制器参数
 };
 
 class ConfigReader  // 配置文件读取器

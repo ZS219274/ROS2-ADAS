@@ -1,257 +1,292 @@
 #include "lqr_controller.h"
 #include <cmath>
 #include <algorithm>
-#include <limits>
 #include "rclcpp/rclcpp.hpp"
-#include "tf2/LinearMath/Quaternion.h"
-#include "tf2/LinearMath/Matrix3x3.h"
 
 namespace Control {
 
-LQRController::LQRController(const ControlConfigStruct& config)
-    : config_(config), gain_computed_(false) {
-  // 初始化LQR权重参数
-  q_x_ = 1.0;              // x位置权重
-  q_y_ = 1.0;              // y位置权重
-  q_theta_ = 2.0;          // 航向角权重
-  q_v_ = 1.0;              // 速度权重
-  r_angular_ = 0.1;        // 角速度权重
-  r_acceleration_ = 0.1;   // 加速度权重
+// =====================================================================
+//  2×2 矩阵运算（row-major: [a00, a01, a10, a11]）
+// =====================================================================
 
-  // 设置控制输入限制
+LQRController::Mat2 LQRController::mat_add(const Mat2& a, const Mat2& b) {
+  return {a[0] + b[0], a[1] + b[1], a[2] + b[2], a[3] + b[3]};
+}
+
+LQRController::Mat2 LQRController::mat_sub(const Mat2& a, const Mat2& b) {
+  return {a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3]};
+}
+
+LQRController::Mat2 LQRController::mat_mul(const Mat2& a, const Mat2& b) {
+  return {a[0] * b[0] + a[1] * b[2], a[0] * b[1] + a[1] * b[3],
+          a[2] * b[0] + a[3] * b[2], a[2] * b[1] + a[3] * b[3]};
+}
+
+LQRController::Mat2 LQRController::mat_transpose(const Mat2& a) {
+  return {a[0], a[2], a[1], a[3]};
+}
+
+LQRController::Vec2 LQRController::mat_vec_mul(const Mat2& m,
+                                                const Vec2& v) {
+  return {m[0] * v[0] + m[1] * v[1], m[2] * v[0] + m[3] * v[1]};
+}
+
+double LQRController::normalize_angle(double angle) {
+  while (angle > M_PI) angle -= 2.0 * M_PI;
+  while (angle < -M_PI) angle += 2.0 * M_PI;
+  return angle;
+}
+
+// =====================================================================
+//  DARE 求解器  —  2-state / 1-input 离散代数Riccati方程
+// =====================================================================
+
+LQRController::Vec2 LQRController::solve_dare(const Mat2& A, const Vec2& B,
+                                               const Mat2& Q,
+                                               double R) const {
+  const int max_iter = config_.lqr_.max_iteration;
+  const double tol = config_.lqr_.tolerance;
+  Mat2 P = Q;
+  Mat2 At = mat_transpose(A);
+
+  for (int iter = 0; iter < max_iter; ++iter) {
+    Mat2 P_prev = P;
+
+    // Aᵀ P,  Aᵀ P A
+    Mat2 AtP = mat_mul(At, P);
+    Mat2 AtPA = mat_mul(AtP, A);
+
+    // Aᵀ P B  (2×1)
+    Vec2 AtPB = mat_vec_mul(AtP, B);
+
+    // Bᵀ P B  (scalar)
+    Vec2 PB = mat_vec_mul(P, B);
+    double BtPB = B[0] * PB[0] + B[1] * PB[1];
+    double inv_factor = 1.0 / (R + BtPB);
+
+    // rank-1 修正: Aᵀ P B · (R + Bᵀ P B)⁻¹ · Bᵀ P A
+    Mat2 correction = {
+        AtPB[0] * inv_factor * AtPB[0], AtPB[0] * inv_factor * AtPB[1],
+        AtPB[1] * inv_factor * AtPB[0], AtPB[1] * inv_factor * AtPB[1]};
+
+    P = mat_add(mat_sub(AtPA, correction), Q);
+
+    double max_diff =
+        std::max({std::abs(P[0] - P_prev[0]), std::abs(P[1] - P_prev[1]),
+                  std::abs(P[2] - P_prev[2]), std::abs(P[3] - P_prev[3])});
+    if (max_diff < tol) {
+      RCLCPP_DEBUG(rclcpp::get_logger("lqr_controller"),
+                   "DARE converged in %d iterations (diff=%.2e)", iter + 1,
+                   max_diff);
+      break;
+    }
+  }
+
+  // K = (R + Bᵀ P B)⁻¹ · Bᵀ P A   (1×2)
+  Vec2 PB = mat_vec_mul(P, B);
+  double BtPB = B[0] * PB[0] + B[1] * PB[1];
+  double inv_factor = 1.0 / (R + BtPB);
+
+  double BtP0 = B[0] * P[0] + B[1] * P[2];
+  double BtP1 = B[0] * P[1] + B[1] * P[3];
+
+  double k0 = inv_factor * (BtP0 * A[0] + BtP1 * A[2]);
+  double k1 = inv_factor * (BtP0 * A[1] + BtP1 * A[3]);
+
+  return {k0, k1};
+}
+
+// =====================================================================
+//  增益计算
+// =====================================================================
+
+LQRController::Vec2 LQRController::compute_lateral_gain(double v) const {
+  double dt = config_.dt_;
+  double L = config_.wheelbase_;
+
+  // 自行车运动学横向误差模型（曲率前馈消除后）
+  //   x = [e_d, e_φ],  u = δ
+  //   A = [[1, v·dt], [0, 1]],  B = [[0], [v·dt/L]]
+  Mat2 A = {1.0, v * dt, 0.0, 1.0};
+  Vec2 B = {0.0, v * dt / L};
+
+  Mat2 Q = {config_.lqr_.q_lateral_error, 0.0, 0.0,
+            config_.lqr_.q_heading_error};
+  double R = config_.lqr_.r_steering;
+
+  return solve_dare(A, B, Q, R);
+}
+
+LQRController::Vec2 LQRController::compute_longitudinal_gain() const {
+  double dt = config_.dt_;
+
+  // 纵向误差模型
+  //   x = [e_s, e_v],  u = a − a_ref
+  //   A = [[1, dt], [0, 1]],  B = [[0], [dt]]
+  Mat2 A = {1.0, dt, 0.0, 1.0};
+  Vec2 B = {0.0, dt};
+
+  Mat2 Q = {config_.lqr_.q_station_error, 0.0, 0.0,
+            config_.lqr_.q_velocity_error};
+  double R = config_.lqr_.r_acceleration;
+
+  return solve_dare(A, B, Q, R);
+}
+
+// =====================================================================
+//  构造 / 重置
+// =====================================================================
+
+LQRController::LQRController(const ControlConfigStruct& config)
+    : config_(config), cached_lat_velocity_(-1.0) {
   max_angular_velocity_ = config_.lateral_.max_output_;
   min_angular_velocity_ = config_.lateral_.min_output_;
   max_acceleration_ = config_.longitudinal_.max_output_;
   min_acceleration_ = config_.longitudinal_.min_output_;
 
-  // 初始化增益矩阵为2x4零矩阵
-  K_.resize(2);
-  for (int i = 0; i < 2; ++i) {
-    K_[i].resize(4, 0.0);
-  }
+  K_lon_ = compute_longitudinal_gain();
+  K_lat_ = {0.0, 0.0};
 
-  // 计算LQR增益矩阵
-  compute_lqr_gain();
-}
-
-void LQRController::compute_control_inputs(
-    const LocalTrajectory::SharedPtr trajectory,
-    const VehicleState& vehicle_state,
-    int closest_idx, int lookahead_idx,
-    double& angular_velocity, double& acceleration) {
-  
-  // 提取参考状态（使用最近点计算误差，使用前视点作为目标）
-  std::vector<double> reference_state_closest = extract_reference_state(
-      trajectory, closest_idx);
-  std::vector<double> reference_state_lookahead = extract_reference_state(
-      trajectory, lookahead_idx);
-  
-  // 计算轨迹坐标系下的误差（类似PID控制器的方法）
-  // 横向误差：垂直于轨迹方向的距离
-  double lateral_error = compute_lateral_error(
-      trajectory, vehicle_state, closest_idx);
-  
-  // 航向角误差（使用前视点，与PID控制器一致）
-  double heading_error = compute_heading_error(
-      vehicle_state, reference_state_lookahead);
-  
-  // 速度误差
-  double speed_error = reference_state_lookahead[3] - vehicle_state.speed_;
-  
-  // 使用LQR反馈控制律（类似PID控制器的方式）
-  // 横向控制：组合横向误差和航向角误差（与PID控制器一致）
-  double lateral_control_error = heading_error + 0.5 * lateral_error;
-  angular_velocity = K_[0][0] * lateral_error +        // 横向位置误差
-                     K_[0][1] * lateral_control_error; // 组合误差（主要，类似PID的kp*error）
-  
-  // 纵向控制：速度跟踪（与PID控制器一致）
-  acceleration = K_[1][3] * speed_error;                // 速度误差（主要）
-  
-  // 限制输出
-  angular_velocity = std::clamp(angular_velocity, 
-                                min_angular_velocity_, 
-                                max_angular_velocity_);
-  acceleration = std::clamp(acceleration, 
-                           min_acceleration_, 
-                           max_acceleration_);
+  RCLCPP_INFO(rclcpp::get_logger("lqr_controller"),
+              "LQR controller initialized (DARE-based). "
+              "K_lon=[%.4f, %.4f], wheelbase=%.2f, dt=%.3f",
+              K_lon_[0], K_lon_[1], config_.wheelbase_, config_.dt_);
 }
 
 void LQRController::reset() {
-  // LQR控制器重置（如果需要）
-  gain_computed_ = false;
-  compute_lqr_gain();
+  cached_lat_velocity_ = -1.0;
+  K_lat_ = {0.0, 0.0};
+  K_lon_ = compute_longitudinal_gain();
 }
 
-void LQRController::compute_lqr_gain() {
-  // LQR增益矩阵设计（简化版，更接近PID控制器）
-  // 状态向量: [lateral_error, lateral_control_error, speed_error]
-  // 控制向量: [angular_velocity, acceleration]
-  // K = [k11, k12]  // 角速度控制
-  //     [k21, k22]  // 加速度控制
-  
-  // 横向控制增益（角速度）
-  // 基于权重矩阵Q、R，参考PID控制器的kp值范围
-  double k_lateral = std::sqrt(q_y_ / r_angular_) * 0.3;      // 横向位置反馈增益
-  double k_combined = std::sqrt(q_theta_ / r_angular_) * 1.2; // 组合误差反馈增益（主要）
-  
-  // 纵向控制增益（加速度）
-  // 基于权重矩阵Q、R，参考PID控制器的kp值范围
-  double k_speed = std::sqrt(q_v_ / r_acceleration_) * 1.8;    // 速度反馈增益
-  
-  // 设置增益矩阵（2x2简化版）
-  // 第一行：角速度控制 [lateral_error, lateral_control_error]
-  K_[0][0] = k_lateral;     // 横向误差 -> angular_velocity
-  K_[0][1] = k_combined;    // 组合误差 -> angular_velocity（主要）
-  K_[0][2] = 0.0;           // 未使用
-  K_[0][3] = 0.0;           // 未使用
-  
-  // 第二行：加速度控制 [speed_error]
-  K_[1][0] = 0.0;           // 未使用
-  K_[1][1] = 0.0;           // 未使用
-  K_[1][2] = 0.0;           // 未使用
-  K_[1][3] = k_speed;       // 速度误差 -> acceleration（主要）
-  
-  gain_computed_ = true;
+// =====================================================================
+//  主控制回路
+// =====================================================================
+
+void LQRController::compute_control_inputs(
+    const LocalTrajectory::SharedPtr trajectory,
+    const VehicleState& vehicle_state, int closest_idx,
+    int /*lookahead_idx*/, double& angular_velocity, double& acceleration) {
+  double v = vehicle_state.speed_;
+  double L = config_.wheelbase_;
+  double v_ctrl = std::max(std::abs(v), kMinComputeVelocity);
+
+  // ---- 横向增益：随速度自适应更新 ----
+  if (cached_lat_velocity_ < 0.0 ||
+      std::abs(v_ctrl - cached_lat_velocity_) > kVelocityUpdateThreshold) {
+    K_lat_ = compute_lateral_gain(v_ctrl);
+    cached_lat_velocity_ = v_ctrl;
+    RCLCPP_DEBUG(rclcpp::get_logger("lqr_controller"),
+                 "Lateral gain updated at v=%.2f: K=[%.4f, %.4f]", v_ctrl,
+                 K_lat_[0], K_lat_[1]);
+  }
+
+  // =============== 横向控制 ===============
+  double ref_yaw = extract_ref_yaw(trajectory, closest_idx);
+  double ref_kappa = extract_ref_curvature(trajectory, closest_idx);
+
+  double e_d = compute_lateral_error(trajectory, vehicle_state, closest_idx);
+  double e_phi = compute_heading_error(vehicle_state.theta_, ref_yaw);
+
+  // LQR反馈: δ_fb = −K · [e_d, e_φ]ᵀ
+  double delta_fb = -(K_lat_[0] * e_d + K_lat_[1] * e_phi);
+
+  // 曲率前馈: δ_ff = κ · L
+  double delta_ff = ref_kappa * L;
+
+  double delta =
+      std::clamp(delta_fb + delta_ff, -kMaxSteeringAngle, kMaxSteeringAngle);
+
+  // 转向角 → 角速度: ω = v · tan(δ) / L
+  angular_velocity = v_ctrl * std::tan(delta) / L;
+
+  // =============== 纵向控制 ===============
+  double ref_speed = extract_ref_speed(trajectory, closest_idx);
+  double ref_accel = extract_ref_acceleration(trajectory, closest_idx);
+
+  // e_s = s_vehicle − s_ref (正值：车辆超前)
+  double e_s = -compute_station_error(trajectory, vehicle_state, closest_idx);
+  // e_v = v_vehicle − v_ref (正值：车辆过快)
+  double e_v = v - ref_speed;
+
+  // LQR反馈 + 参考加速度前馈: a = −K · [e_s, e_v]ᵀ + a_ref
+  acceleration = -(K_lon_[0] * e_s + K_lon_[1] * e_v) + ref_accel;
+
+  // =============== 输出限幅 ===============
+  angular_velocity =
+      std::clamp(angular_velocity, min_angular_velocity_, max_angular_velocity_);
+  acceleration =
+      std::clamp(acceleration, min_acceleration_, max_acceleration_);
 }
 
-std::pair<std::vector<std::vector<double>>, 
-          std::vector<std::vector<double>>> 
-LQRController::linearize_vehicle_model(
-    const std::vector<double>& state,
-    const std::vector<double>& control) {
-  
-  // 车辆运动学模型线性化
-  // state: [x, y, theta, v]
-  // control: [angular_velocity, acceleration]
-  
-  double theta = state[2];
-  double v = state[3];
-  double dt = config_.dt_;
-  
-  // 状态矩阵 A (4x4)
-  std::vector<std::vector<double>> A(4, std::vector<double>(4, 0.0));
-  A[0][0] = 1.0;                    // dx/dx
-  A[0][2] = -v * std::sin(theta) * dt;  // dx/dtheta
-  A[0][3] = std::cos(theta) * dt;  // dx/dv
-  
-  A[1][1] = 1.0;                    // dy/dy
-  A[1][2] = v * std::cos(theta) * dt;   // dy/dtheta
-  A[1][3] = std::sin(theta) * dt;  // dy/dv
-  
-  A[2][2] = 1.0;                    // dtheta/dtheta
-  
-  A[3][3] = 1.0;                    // dv/dv
-  
-  // 控制矩阵 B (4x2)
-  std::vector<std::vector<double>> B(4, std::vector<double>(2, 0.0));
-  B[2][0] = dt;                     // dtheta/d(angular_velocity)
-  B[3][1] = dt;                     // dv/d(acceleration)
-  
-  return std::make_pair(A, B);
-}
+// =====================================================================
+//  误差计算
+// =====================================================================
 
 double LQRController::compute_lateral_error(
     const LocalTrajectory::SharedPtr trajectory,
-    const VehicleState& vehicle_state,
-    int closest_idx) {
-  
-  const auto& closest_point =
-      trajectory->local_trajectory[closest_idx].path_point;
-  
-  // 计算车辆到最近轨迹点的向量
-  double dx = closest_point.pose.pose.position.x - vehicle_state.pose_x_;
-  double dy = closest_point.pose.pose.position.y - vehicle_state.pose_y_;
-  
-  // 计算轨迹点的航向角
-  tf2::Quaternion qtn(
-      closest_point.pose.pose.orientation.x,
-      closest_point.pose.pose.orientation.y,
-      closest_point.pose.pose.orientation.z,
-      closest_point.pose.pose.orientation.w);
-  double roll, pitch, yaw;
-  tf2::Matrix3x3(qtn).getRPY(roll, pitch, yaw);
-  
-  // 计算横向误差（垂直于轨迹方向的距离）
-  double cos_theta = std::cos(yaw);
-  double sin_theta = std::sin(yaw);
-  double lateral_error = -dx * sin_theta + dy * cos_theta;
-  
-  return lateral_error;
+    const VehicleState& vehicle_state, int idx) const {
+  const auto& pt = trajectory->local_trajectory[idx].path_point;
+
+  // 车辆相对轨迹点的偏移
+  double dx = vehicle_state.pose_x_ - pt.pose.pose.position.x;
+  double dy = vehicle_state.pose_y_ - pt.pose.pose.position.y;
+  double yaw = pt.theta;
+
+  // 投影到轨迹左法向 n_left = (−sin θ, cos θ)
+  // 正值 ⟹ 车辆在轨迹左侧
+  return -dx * std::sin(yaw) + dy * std::cos(yaw);
 }
 
-double LQRController::compute_longitudinal_error(
+double LQRController::compute_heading_error(double vehicle_theta,
+                                            double ref_theta) const {
+  // e_φ = θ_vehicle − θ_ref,  归一化到 [−π, π]
+  return normalize_angle(vehicle_theta - ref_theta);
+}
+
+double LQRController::compute_station_error(
     const LocalTrajectory::SharedPtr trajectory,
-    const VehicleState& vehicle_state,
-    int closest_idx) {
-  
-  const auto& closest_point =
-      trajectory->local_trajectory[closest_idx].path_point;
-  
-  // 计算车辆到最近轨迹点的向量
-  double dx = closest_point.pose.pose.position.x - vehicle_state.pose_x_;
-  double dy = closest_point.pose.pose.position.y - vehicle_state.pose_y_;
-  
-  // 计算轨迹点的航向角
-  tf2::Quaternion qtn(
-      closest_point.pose.pose.orientation.x,
-      closest_point.pose.pose.orientation.y,
-      closest_point.pose.pose.orientation.z,
-      closest_point.pose.pose.orientation.w);
-  double roll, pitch, yaw;
-  tf2::Matrix3x3(qtn).getRPY(roll, pitch, yaw);
-  
-  // 计算纵向误差（沿轨迹方向的距离）
-  double cos_theta = std::cos(yaw);
-  double sin_theta = std::sin(yaw);
-  double longitudinal_error = dx * cos_theta + dy * sin_theta;
-  
-  return longitudinal_error;
+    const VehicleState& vehicle_state, int idx) const {
+  const auto& pt = trajectory->local_trajectory[idx].path_point;
+
+  double dx = pt.pose.pose.position.x - vehicle_state.pose_x_;
+  double dy = pt.pose.pose.position.y - vehicle_state.pose_y_;
+  double yaw = pt.theta;
+
+  // 轨迹点相对车辆的纵向分量，正值表示轨迹点在车辆前方（车辆落后）
+  return dx * std::cos(yaw) + dy * std::sin(yaw);
 }
 
-double LQRController::compute_heading_error(
-    const VehicleState& vehicle_state,
-    const std::vector<double>& reference_state) {
-  
-  // 计算航向角误差（归一化到[-π, π]）
-  // 注意：与PID控制器保持一致，使用 reference - current
-  double heading_error = reference_state[2] - vehicle_state.theta_;
-  while (heading_error > M_PI) heading_error -= 2.0 * M_PI;
-  while (heading_error < -M_PI) heading_error += 2.0 * M_PI;
-  
-  return heading_error;
+// =====================================================================
+//  参考量提取
+// =====================================================================
+
+double LQRController::extract_ref_yaw(
+    const LocalTrajectory::SharedPtr trajectory, int idx) const {
+  int size = static_cast<int>(trajectory->local_trajectory.size());
+  idx = std::clamp(idx, 0, size - 1);
+  return trajectory->local_trajectory[idx].path_point.theta;
 }
 
-std::vector<double> LQRController::extract_reference_state(
-    const LocalTrajectory::SharedPtr trajectory,
-    int idx) {
-  
-  std::vector<double> reference_state(4);
-  
-  // 确保索引有效
-  int trajectory_size = trajectory->local_trajectory.size();
-  idx = std::min(idx, trajectory_size - 1);
-  idx = std::max(idx, 0);
-  
-  const auto& point = trajectory->local_trajectory[idx].path_point;
-  
-  // 提取位置
-  reference_state[0] = point.pose.pose.position.x;
-  reference_state[1] = point.pose.pose.position.y;
-  
-  // 提取航向角
-  tf2::Quaternion qtn(point.pose.pose.orientation.x,
-                      point.pose.pose.orientation.y,
-                      point.pose.pose.orientation.z,
-                      point.pose.pose.orientation.w);
-  double roll, pitch, yaw;
-  tf2::Matrix3x3(qtn).getRPY(roll, pitch, yaw);
-  reference_state[2] = yaw;
-  
-  // 提取速度（如果有，否则使用默认值）
-  reference_state[3] = 10.0;  // 默认目标速度，可以从轨迹中获取
-  
-  return reference_state;
+double LQRController::extract_ref_speed(
+    const LocalTrajectory::SharedPtr trajectory, int idx) const {
+  int size = static_cast<int>(trajectory->local_trajectory.size());
+  idx = std::clamp(idx, 0, size - 1);
+  return trajectory->local_trajectory[idx].speed_point.speed;
+}
+
+double LQRController::extract_ref_curvature(
+    const LocalTrajectory::SharedPtr trajectory, int idx) const {
+  int size = static_cast<int>(trajectory->local_trajectory.size());
+  idx = std::clamp(idx, 0, size - 1);
+  return trajectory->local_trajectory[idx].path_point.kappa;
+}
+
+double LQRController::extract_ref_acceleration(
+    const LocalTrajectory::SharedPtr trajectory, int idx) const {
+  int size = static_cast<int>(trajectory->local_trajectory.size());
+  idx = std::clamp(idx, 0, size - 1);
+  return trajectory->local_trajectory[idx].speed_point.acceleration;
 }
 
 }  // namespace Control
-
